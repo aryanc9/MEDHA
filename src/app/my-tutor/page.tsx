@@ -10,6 +10,8 @@ import { Label } from '@/components/ui/label';
 import { Textarea } from '@/components/ui/textarea';
 import { Accordion, AccordionContent, AccordionItem, AccordionTrigger } from '@/components/ui/accordion';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
+import { Sheet, SheetContent, SheetHeader, SheetTitle, SheetTrigger, SheetDescription } from '@/components/ui/sheet';
+
 import { 
     BookCopy, 
     Upload, 
@@ -415,7 +417,7 @@ const HistoryDisplay = () => {
     }
 
     return (
-        <div className="mt-10 space-y-8">
+        <div className="space-y-8 p-4">
             <Card>
                 <CardHeader>
                     <CardTitle>Generated Courses</CardTitle>
@@ -522,18 +524,39 @@ export default function MyTutorPage() {
 
   return (
     <div className="container mx-auto max-w-6xl py-12 px-4">
-      <div className="text-center mb-10">
-        <h1 className="text-4xl font-bold tracking-tight font-headline">My AI Tutor</h1>
-        <p className="text-muted-foreground mt-2 max-w-2xl mx-auto">
-          Generate a personalized course, chat with your AI buddy, or review your history.
-        </p>
-      </div>
+        <Sheet>
+            <div className="text-center mb-10">
+                <div className="flex justify-center items-center gap-4 mb-2">
+                    <h1 className="text-4xl font-bold tracking-tight font-headline">My AI Tutor</h1>
+                    <SheetTrigger asChild>
+                        <Button variant="outline">
+                            <History className="mr-2"/>
+                            View History
+                        </Button>
+                    </SheetTrigger>
+                </div>
+                <p className="text-muted-foreground mt-2 max-w-2xl mx-auto">
+                Generate a personalized course, chat with your AI buddy, or review your history.
+                </p>
+            </div>
+            
+            <SheetContent side="top" className="w-full h-3/4 md:h-2/3 md:w-3/4 mx-auto">
+                <SheetHeader>
+                    <SheetTitle>Your Learning History</SheetTitle>
+                    <SheetDescription>
+                        Review your previously generated courses and conversations.
+                    </SheetDescription>
+                </SheetHeader>
+                <ScrollArea className="h-[calc(100%-4rem)]">
+                    <HistoryDisplay />
+                </ScrollArea>
+            </SheetContent>
+        </Sheet>
       
        <Tabs value={activeTab} onValueChange={setActiveTab} className="w-full">
-        <TabsList className="grid w-full grid-cols-3">
+        <TabsList className="grid w-full grid-cols-2">
           <TabsTrigger value="create"><BookCopy className="mr-2"/> Create Course</TabsTrigger>
           <TabsTrigger value="buddy"><MessageSquare className="mr-2"/> Talk Buddy</TabsTrigger>
-          <TabsTrigger value="history"><History className="mr-2"/> History</TabsTrigger>
         </TabsList>
         <TabsContent value="create">
              <form onSubmit={handleCreateCourse} className="space-y-8 mt-6">
@@ -664,9 +687,6 @@ export default function MyTutorPage() {
         </TabsContent>
         <TabsContent value="buddy">
             <TalkBuddyDisplay />
-        </TabsContent>
-        <TabsContent value="history">
-            <HistoryDisplay />
         </TabsContent>
        </Tabs>
     </div>
