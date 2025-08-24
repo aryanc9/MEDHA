@@ -128,16 +128,21 @@ const myTutorFlow = ai.defineFlow(
     // Generate image and audio in parallel
     const [imageUrlResult, audioUrlResult] = await Promise.allSettled([
         (async () => {
-            const { output: imagePromptOutput } = await imageGenerationPrompt({ topic: input.prompt });
-            if (!imagePromptOutput?.imagePrompt) return undefined;
-            const { media } = await ai.generate({
-              model: 'googleai/gemini-2.0-flash-preview-image-generation',
-              prompt: imagePromptOutput.imagePrompt,
-              config: {
-                responseModalities: ['TEXT', 'IMAGE'],
-              },
-            });
-            return media?.url;
+            try {
+                const { output: imagePromptOutput } = await imageGenerationPrompt({ topic: input.prompt });
+                if (!imagePromptOutput?.imagePrompt) return undefined;
+                const { media } = await ai.generate({
+                model: 'googleai/gemini-2.0-flash-preview-image-generation',
+                prompt: imagePromptOutput.imagePrompt,
+                config: {
+                    responseModalities: ['TEXT', 'IMAGE'],
+                },
+                });
+                return media?.url;
+            } catch (e) {
+                console.error("Image generation failed:", e);
+                return undefined;
+            }
         })(),
         (async () => {
             if (!explanation) return undefined;
@@ -181,9 +186,18 @@ const myTutorFlow = ai.defineFlow(
     let courseId: string | undefined = undefined;
     if(input.userId && course) {
         const courseDocRef = doc(collection(db, 'users', input.userId, 'courses'));
+        
+        const responseForDb = {
+            explanation,
+            course,
+            relatedResources,
+            imageUrl: imageUrl || null,
+            audioUrl: audioUrl || null
+        };
+
         await setDoc(courseDocRef, {
             ...input,
-            response: { explanation, course, relatedResources, imageUrl, audioUrl },
+            response: responseForDb,
             createdAt: serverTimestamp(),
         });
         courseId = courseDocRef.id;
@@ -200,5 +214,3 @@ const myTutorFlow = ai.defineFlow(
     };
   }
 );
-
-    
