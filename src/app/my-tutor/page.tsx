@@ -43,18 +43,10 @@ import { useToast } from '@/hooks/use-toast';
 import Image from 'next/image';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { ScrollArea } from '@/components/ui/scroll-area';
-import { getFirestore, collection, query, orderBy, onSnapshot, doc, getDoc } from "firebase/firestore";
+import { getFirestore, collection, query, orderBy, onSnapshot } from "firebase/firestore";
 import { firebaseApp } from '@/lib/firebase';
 
 const db = getFirestore(firebaseApp);
-
-// Add SpeechRecognition types for browser compatibility
-declare global {
-  interface Window {
-    SpeechRecognition: any;
-    webkitSpeechRecognition: any;
-  }
-}
 
 // Reusable Icon component for different resource types
 const ResourceIcon = ({ type }: { type: string }) => {
@@ -416,7 +408,7 @@ const CourseCreationForm = ({
 };
 
 // Component for the Talk Buddy chat interface
-const TalkBuddyDisplay = ({ onConversationSelect }: { onConversationSelect: (messages: TalkBuddyMessage[], language: string, id: string) => void }) => {
+const TalkBuddyDisplay = ({ onConversationSelect }: { onConversationSelect: React.MutableRefObject<((messages: TalkBuddyMessage[], language: string, id: string) => void) | null> }) => {
     const { user } = useAuth();
     const [language, setLanguage] = useState('English');
     const [messages, setMessages] = useState<TalkBuddyMessage[]>([]);
@@ -470,10 +462,7 @@ const TalkBuddyDisplay = ({ onConversationSelect }: { onConversationSelect: (mes
     }, []);
 
     useEffect(() => {
-        if (onConversationSelect) {
-            // @ts-ignore
-            onConversationSelect.current = loadConversation;
-        }
+        onConversationSelect.current = loadConversation;
     }, [onConversationSelect, loadConversation]);
 
 
@@ -745,7 +734,7 @@ export default function MyTutorPage() {
                  {result && <CourseDisplay result={result} />}
             </TabsContent>
             <TabsContent value="buddy">
-                <TalkBuddyDisplay onConversationSelect={talkBuddyConversationLoader as any} />
+                <TalkBuddyDisplay onConversationSelect={talkBuddyConversationLoader} />
             </TabsContent>
            </Tabs>
         </div>

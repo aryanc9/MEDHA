@@ -12,7 +12,7 @@
 import {ai} from '@/ai/genkit';
 import {z} from 'zod';
 import { toWav } from '@/lib/audio';
-import { getFirestore, doc, setDoc } from "firebase/firestore";
+import { getFirestore, doc, setDoc, collection } from "firebase/firestore";
 import { firebaseApp } from '@/lib/firebase';
 
 const db = getFirestore(firebaseApp);
@@ -197,7 +197,6 @@ const myTutorFlow = ai.defineFlow(
         const courseId = doc(collection(db, `users/${input.userId}/courses`)).id;
         const courseDocRef = doc(db, `users/${input.userId}/courses/${courseId}`);
 
-        // Create a history object, excluding oversized images from being saved
         const historyData = {
             ...finalResult,
             imageUrl: imageUrl && imageUrl.length > 1048487 ? undefined : imageUrl,
