@@ -2,7 +2,7 @@
 'use client';
 
 import { useEffect, useState } from 'react';
-import { BookOpenCheck, BrainCircuit, Route, Loader2, History } from 'lucide-react';
+import { BookOpenCheck, BrainCircuit, Route, Loader2, MessageSquare } from 'lucide-react';
 import { WelcomeHeader } from '@/components/dashboard/WelcomeHeader';
 import { FeatureCard } from '@/components/dashboard/FeatureCard';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
@@ -64,10 +64,10 @@ export default function DashboardPage() {
           icon={<BookOpenCheck className="h-8 w-8 text-primary" />}
         />
          <FeatureCard
-          title="History"
-          description="Review past courses, conversations, and submissions."
-          href="/history"
-          icon={<History className="h-8 w-8 text-primary" />}
+          title="Talk Buddy"
+          description="Practice languages with your real-time conversational AI partner."
+          href="/my-tutor?tab=buddy"
+          icon={<MessageSquare className="h-8 w-8 text-primary" />}
         />
       </div>
 
@@ -107,3 +107,5 @@ export default function DashboardPage() {
     </div>
   );
 }
+
+    

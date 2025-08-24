@@ -95,18 +95,6 @@ export function SidebarNav() {
            <SidebarMenuItem>
             <SidebarMenuButton
               asChild
-              isActive={isActive("/history")}
-              tooltip={{ children: "History" }}
-            >
-              <Link href="/history">
-                <History />
-                <span>History</span>
-              </Link>
-            </SidebarMenuButton>
-          </SidebarMenuItem>
-           <SidebarMenuItem>
-            <SidebarMenuButton
-              asChild
               isActive={isActive("/settings")}
               tooltip={{ children: "Settings" }}
             >
@@ -132,3 +120,5 @@ export function SidebarNav() {
     </>
   )
 }
+
+    
