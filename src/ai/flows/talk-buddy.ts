@@ -12,14 +12,13 @@
 import { ai } from '@/ai/genkit';
 import { z } from 'zod';
 import { toWav } from '@/lib/audio';
-import { getFirestore, doc, setDoc, collection, addDoc } from "firebase/firestore";
+import { getFirestore, doc, setDoc, collection } from "firebase/firestore";
 import { firebaseApp } from '@/lib/firebase';
 import {
   TalkBuddyInputSchema,
   type TalkBuddyInput,
   TalkBuddyOutputSchema,
   type TalkBuddyOutput,
-  TalkBuddyMessageSchema
 } from '@/ai/schemas/talk-buddy-schemas';
 
 const db = getFirestore(firebaseApp);
@@ -119,5 +118,3 @@ const talkBuddyFlow = ai.defineFlow(
     return finalResult;
   }
 );
-
-    

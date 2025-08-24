@@ -463,10 +463,18 @@ const TalkBuddyDisplay = ({ onConversationSelect }: { onConversationSelect: (mes
         }
     }, [messages]);
 
-    // This effect allows loading a past conversation from the history panel
+    const loadConversation = useCallback((newMessages: TalkBuddyMessage[], newLanguage: string, newId: string) => {
+        setMessages(newMessages);
+        setLanguage(newLanguage);
+        setConversationId(newId);
+    }, []);
+
     useEffect(() => {
-        onConversationSelect(messages, language, conversationId!);
-    }, [messages, language, conversationId, onConversationSelect]);
+        if (onConversationSelect) {
+            // @ts-ignore
+            onConversationSelect.current = loadConversation;
+        }
+    }, [onConversationSelect, loadConversation]);
 
 
     const handleSendMessage = useCallback(async (text: string) => {
@@ -610,7 +618,7 @@ const HistoryDisplay = ({ onCourseSelect, onConversationSelect }: {
         setLoading(true);
 
         const coursesQuery = query(collection(db, `users/${user.uid}/courses`), orderBy('createdAt', 'desc'));
-        const conversationsQuery = query(collection(db, `users/${user.uid}/conversations`), orderBy('createdAt', 'desc'));
+        const conversationsQuery = query(collection(db, `users/${user.uid}/conversations`), orderBy('updatedAt', 'desc'));
 
         const unsubCourses = onSnapshot(coursesQuery, (snapshot) => {
             const fetchedCourses = snapshot.docs.map(doc => doc.data() as MyTutorOutput);
@@ -643,8 +651,8 @@ const HistoryDisplay = ({ onCourseSelect, onConversationSelect }: {
             <TabsContent value="courses">
                 <ScrollArea className="h-[calc(100vh-150px)]">
                     <div className="space-y-4 p-4">
-                        {loading && <Loader2 className="mx-auto animate-spin" />}
-                        {!loading && courses.length === 0 && <p className="text-center text-muted-foreground">No course history found.</p>}
+                        {loading && <div className="flex justify-center p-4"><Loader2 className="mx-auto animate-spin" /></div>}
+                        {!loading && courses.length === 0 && <p className="text-center text-muted-foreground py-4">No course history found.</p>}
                         {courses.map((course) => (
                             <Button key={course.courseId} variant="ghost" className="w-full justify-start h-auto p-3" onClick={() => onCourseSelect(course)}>
                                 <div className="text-left">
@@ -659,11 +667,11 @@ const HistoryDisplay = ({ onCourseSelect, onConversationSelect }: {
             <TabsContent value="chats">
                 <ScrollArea className="h-[calc(100vh-150px)]">
                     <div className="space-y-4 p-4">
-                        {conversations.length === 0 && <p className="text-center text-muted-foreground">No chat history found.</p>}
+                        {conversations.length === 0 && <p className="text-center text-muted-foreground py-4">No chat history found.</p>}
                         {conversations.map((chat) => (
                              <Button key={chat.id} variant="ghost" className="w-full justify-start h-auto p-3" onClick={() => onConversationSelect(chat.messages, chat.language, chat.id)}>
                                 <div className="text-left">
-                                    <p className="font-semibold truncate">{chat.title || 'Untitled Chat'}</p>
+                                    <p className="font-semibold truncate w-64">{chat.title || 'Untitled Chat'}</p>
                                     <p className="text-xs text-muted-foreground">{new Date(chat.createdAt).toLocaleString()}</p>
                                 </div>
                             </Button>
@@ -682,8 +690,7 @@ export default function MyTutorPage() {
     const [isSheetOpen, setIsSheetOpen] = useState(false);
     
     // Create a ref for the TalkBuddyDisplay component to call its methods
-    const talkBuddyRef = useRef<{ setConversation: (messages: TalkBuddyMessage[], language: string, id: string) => void }>(null);
-
+    const talkBuddyConversationLoader = useRef<((messages: TalkBuddyMessage[], language: string, id: string) => void) | null>(null);
 
     const handleCourseCreated = (output: MyTutorOutput) => {
         setResult(output);
@@ -696,27 +703,16 @@ export default function MyTutorPage() {
     }
 
     const handleConversationSelectFromHistory = (messages: TalkBuddyMessage[], language: string, id: string) => {
-        // This is tricky because we can't directly set state on a sibling.
-        // We'll use a little trick: update a key on TalkBuddyDisplay to force a remount with new props,
-        // or use a more advanced state management solution. For now, we'll just switch tabs.
-        // A full implementation would require context or a state lift.
         setActiveTab('buddy');
-        // This is where you would imperatively call a method on TalkBuddyDisplay if you set up a ref.
-        // talkBuddyRef.current?.setConversation(messages, language, id);
-        // For now, the user has to manually see the chat. A better implementation is needed for direct loading.
-        toast({ title: "Conversation Selected", description: "Switched to Talk Buddy tab. Conversation loading will be improved."})
-        setIsSheetOpen(false); // Close the history sheet
+        if (talkBuddyConversationLoader.current) {
+            talkBuddyConversationLoader.current(messages, language, id);
+        }
+        setIsSheetOpen(false);
     }
     
-    // Callback to allow TalkBuddy to update a selected conversation
-    const handleConversationUpdate = useCallback((messages: TalkBuddyMessage[], language: string, id: string) => {
-       // This function is passed to TalkBuddyDisplay but is not fully implemented
-       // to load the state due to component lifecycle complexities without a shared state manager.
-    }, []);
-
     return (
         <div className="container mx-auto max-w-6xl py-12 px-4">
-             <div className="flex justify-between items-center mb-10">
+             <div className="flex justify-between items-start mb-10">
                 <div className="text-center flex-1">
                     <h1 className="text-4xl font-bold tracking-tight font-headline">My AI Tutor</h1>
                     <p className="text-muted-foreground mt-2 max-w-2xl mx-auto">
@@ -749,11 +745,9 @@ export default function MyTutorPage() {
                  {result && <CourseDisplay result={result} />}
             </TabsContent>
             <TabsContent value="buddy">
-                <TalkBuddyDisplay onConversationSelect={handleConversationUpdate} />
+                <TalkBuddyDisplay onConversationSelect={talkBuddyConversationLoader as any} />
             </TabsContent>
            </Tabs>
         </div>
     );
 }
-
-    

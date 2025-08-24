@@ -23,5 +23,3 @@ export const TalkBuddyOutputSchema = z.object({
   conversationId: z.string().optional().describe('The ID of the conversation session.'),
 });
 export type TalkBuddyOutput = z.infer<typeof TalkBuddyOutputSchema>;
-
-    
