@@ -36,12 +36,16 @@ export default function DashboardPage() {
           setLoading(false);
         }
       } else if (!userSettings) {
+         // If there are no settings, don't keep it in a loading state
         setLoading(false);
       }
     }
 
     if (user) {
         fetchLearningPath();
+    } else {
+        // If there's no user, stop loading.
+        setLoading(false);
     }
   }, [user, userSettings]);
 
@@ -93,7 +97,7 @@ export default function DashboardPage() {
                    </div>
                 ) : (
                   <ul className="space-y-3">
-                      {learningPath?.moduleRecommendations.length ? learningPath.moduleRecommendations.map((module, index) => (
+                      {learningPath?.moduleRecommendations && learningPath.moduleRecommendations.length > 0 ? learningPath.moduleRecommendations.map((module, index) => (
                           <li key={index} className="flex items-center gap-3 p-3 bg-muted/50 rounded-md">
                           <span className="font-medium text-muted-foreground">{index + 1}.</span>
                           <span className="font-medium">{module}</span>
@@ -107,5 +111,3 @@ export default function DashboardPage() {
     </div>
   );
 }
-
-    

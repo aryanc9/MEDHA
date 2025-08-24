@@ -45,6 +45,7 @@ import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { ScrollArea } from '@/components/ui/scroll-area';
 import { getFirestore, collection, query, orderBy, onSnapshot } from "firebase/firestore";
 import { firebaseApp } from '@/lib/firebase';
+import { useSearchParams } from 'next/navigation';
 
 const db = getFirestore(firebaseApp);
 
@@ -260,6 +261,7 @@ const CourseCreationForm = ({
             return;
         }
         setIsGenerating(true);
+        onCourseCreate({} as MyTutorOutput); // Clear previous result
         try {
             const response = await myTutor({
                 prompt: topic,
@@ -408,7 +410,7 @@ const CourseCreationForm = ({
 };
 
 // Component for the Talk Buddy chat interface
-const TalkBuddyDisplay = ({ onConversationSelect }: { onConversationSelect: React.MutableRefObject<((messages: TalkBuddyMessage[], language: string, id: string) => void) | null> }) => {
+const TalkBuddyDisplay = ({ loadConversation }: { loadConversation: (messages: TalkBuddyMessage[], language: string, id: string) => void; }) => {
     const { user } = useAuth();
     const [language, setLanguage] = useState('English');
     const [messages, setMessages] = useState<TalkBuddyMessage[]>([]);
@@ -451,20 +453,16 @@ const TalkBuddyDisplay = ({ onConversationSelect }: { onConversationSelect: Reac
     // Auto-scroll to the latest message
      useEffect(() => {
         if (scrollAreaRef.current) {
-            scrollAreaRef.current.querySelector('[data-radix-scroll-area-viewport]')!.scrollTop = scrollAreaRef.current.scrollHeight;
+            const viewport = scrollAreaRef.current.querySelector('[data-radix-scroll-area-viewport]');
+            if (viewport) {
+                viewport.scrollTop = viewport.scrollHeight;
+            }
         }
     }, [messages]);
 
-    const loadConversation = useCallback((newMessages: TalkBuddyMessage[], newLanguage: string, newId: string) => {
-        setMessages(newMessages);
-        setLanguage(newLanguage);
-        setConversationId(newId);
-    }, []);
-
     useEffect(() => {
-        onConversationSelect.current = loadConversation;
-    }, [onConversationSelect, loadConversation]);
-
+        loadConversation(messages, language, conversationId || '');
+    }, [messages, language, conversationId, loadConversation]);
 
     const handleSendMessage = useCallback(async (text: string) => {
         const currentMessage = text.trim();
@@ -643,9 +641,9 @@ const HistoryDisplay = ({ onCourseSelect, onConversationSelect }: {
                         {loading && <div className="flex justify-center p-4"><Loader2 className="mx-auto animate-spin" /></div>}
                         {!loading && courses.length === 0 && <p className="text-center text-muted-foreground py-4">No course history found.</p>}
                         {courses.map((course) => (
-                            <Button key={course.courseId} variant="ghost" className="w-full justify-start h-auto p-3" onClick={() => onCourseSelect(course)}>
-                                <div className="text-left">
-                                    <p className="font-semibold">{course.course?.title || 'Untitled Course'}</p>
+                            <Button key={course.id} variant="ghost" className="w-full justify-start h-auto p-3" onClick={() => onCourseSelect(course)}>
+                                <div className="text-left w-full">
+                                    <p className="font-semibold truncate">{course.course?.title || course.prompt || 'Untitled Course'}</p>
                                     <p className="text-xs text-muted-foreground">{new Date(course.createdAt as string).toLocaleString()}</p>
                                 </div>
                             </Button>
@@ -659,7 +657,7 @@ const HistoryDisplay = ({ onCourseSelect, onConversationSelect }: {
                         {conversations.length === 0 && <p className="text-center text-muted-foreground py-4">No chat history found.</p>}
                         {conversations.map((chat) => (
                              <Button key={chat.id} variant="ghost" className="w-full justify-start h-auto p-3" onClick={() => onConversationSelect(chat.messages, chat.language, chat.id)}>
-                                <div className="text-left">
+                                <div className="text-left w-full">
                                     <p className="font-semibold truncate w-64">{chat.title || 'Untitled Chat'}</p>
                                     <p className="text-xs text-muted-foreground">{new Date(chat.createdAt).toLocaleString()}</p>
                                 </div>
@@ -672,14 +670,15 @@ const HistoryDisplay = ({ onCourseSelect, onConversationSelect }: {
     );
 };
 
-// The main page component that ties everything together
 export default function MyTutorPage() {
-    const [activeTab, setActiveTab] = useState('create');
+    const searchParams = useSearchParams();
+    const initialTab = searchParams.get('tab') === 'buddy' ? 'buddy' : 'create';
+    const [activeTab, setActiveTab] = useState(initialTab);
+    
     const [result, setResult] = useState<MyTutorOutput | null>(null);
     const [isSheetOpen, setIsSheetOpen] = useState(false);
     
-    // Create a ref for the TalkBuddyDisplay component to call its methods
-    const talkBuddyConversationLoader = useRef<((messages: TalkBuddyMessage[], language: string, id: string) => void) | null>(null);
+    const talkBuddyLoadConversationRef = useRef<((messages: TalkBuddyMessage[], language: string, id: string) => void) | null>(null);
 
     const handleCourseCreated = (output: MyTutorOutput) => {
         setResult(output);
@@ -693,11 +692,15 @@ export default function MyTutorPage() {
 
     const handleConversationSelectFromHistory = (messages: TalkBuddyMessage[], language: string, id: string) => {
         setActiveTab('buddy');
-        if (talkBuddyConversationLoader.current) {
-            talkBuddyConversationLoader.current(messages, language, id);
+        if (talkBuddyLoadConversationRef.current) {
+            talkBuddyLoadConversationRef.current(messages, language, id);
         }
         setIsSheetOpen(false);
     }
+
+    const setTalkBuddyLoadConversation = useCallback((loader: (messages: TalkBuddyMessage[], language: string, id: string) => void) => {
+        talkBuddyLoadConversationRef.current = loader;
+    }, []);
     
     return (
         <div className="container mx-auto max-w-6xl py-12 px-4">
@@ -731,10 +734,10 @@ export default function MyTutorPage() {
             </TabsList>
             <TabsContent value="create">
                  <CourseCreationForm onCourseCreate={handleCourseCreated} />
-                 {result && <CourseDisplay result={result} />}
+                 {result?.course && <CourseDisplay result={result} />}
             </TabsContent>
             <TabsContent value="buddy">
-                <TalkBuddyDisplay onConversationSelect={talkBuddyConversationLoader} />
+                <TalkBuddyDisplay loadConversation={setTalkBuddyLoadConversation} />
             </TabsContent>
            </Tabs>
         </div>

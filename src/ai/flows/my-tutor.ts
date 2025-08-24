@@ -41,23 +41,30 @@ const CourseModuleSchema = z.object({
   lessons: z.array(CourseLessonSchema).describe("A list of lessons within the module."),
 });
 
-const MyTutorOutputSchema = z.object({
-  explanation: z.string().describe('The primary textual explanation or answer.'),
-  imageUrl: z.string().optional().describe('URL of a generated image to supplement the explanation, if applicable.'),
-  audioUrl: z.string().optional().describe('URL of a generated audio of the text response.'),
-  course: z.object({
+const CourseSchema = z.object({
     title: z.string().describe("The overall title of the generated course."),
     overview: z.string().describe("A brief overview of the entire course."),
     modules: z.array(CourseModuleSchema).describe("An array of course modules."),
-  }).optional().describe("The generated course content, structured into modules and lessons."),
-  relatedResources: z.array(z.object({
+});
+
+const RelatedResourcesSchema = z.array(z.object({
     title: z.string(),
     url: z.string(),
     type: z.enum(['video', 'article', 'other']),
     videoId: z.string().optional().describe("The YouTube video ID if the resource is a YouTube video."),
-  })).optional().describe('A list of related resources like YouTube videos or articles.'),
-  courseId: z.string().optional().describe('The ID of the saved course document.'),
+}));
+
+
+const MyTutorOutputSchema = z.object({
+  explanation: z.string().describe('The primary textual explanation or answer.'),
+  imageUrl: z.string().optional().describe('URL of a generated image to supplement the explanation, if applicable.'),
+  audioUrl: z.string().optional().describe('URL of a generated audio of the text response.'),
+  course: CourseSchema.optional().describe("The generated course content, structured into modules and lessons."),
+  relatedResources: RelatedResourcesSchema.optional().describe('A list of related resources like YouTube videos or articles.'),
+  id: z.string().optional().describe('The ID of the saved course document.'),
+  courseId: z.string().optional().describe('The ID of the saved course document. DEPRECATED, use id instead.'),
   createdAt: z.string().optional().describe('The creation date of the course.'),
+  prompt: z.string().optional().describe('The original prompt for the course.'),
 });
 export type MyTutorOutput = z.infer<typeof MyTutorOutputSchema>;
 
@@ -68,7 +75,7 @@ export async function myTutor(input: MyTutorInput): Promise<MyTutorOutput> {
 const tutorPrompt = ai.definePrompt({
     name: 'tutorPrompt',
     input: { schema: MyTutorInputSchema.omit({ userId: true }) },
-    output: { schema: MyTutorOutputSchema.omit({ imageUrl: true, audioUrl: true, courseId: true, createdAt: true }) },
+    output: { schema: MyTutorOutputSchema.omit({ imageUrl: true, audioUrl: true, id: true, courseId: true, createdAt: true, prompt: true }) },
     prompt: `You are an expert AI course creator and tutor. Your goal is to generate a comprehensive, well-structured course based on the user's request. The course should be broken down into a logical hierarchy of modules and lessons. Also find relevant external resources to supplement your answer.
 
     User Topic: {{{prompt}}}
@@ -183,13 +190,15 @@ const myTutorFlow = ai.defineFlow(
     if (audioUrlResult.status === 'rejected') {
         console.error("TTS generation failed:", audioUrlResult.reason);
     }
-
+    
+    // Create the final result object to be saved and returned
     const finalResult: MyTutorOutput = {
       explanation: explanation || "I'm sorry, I couldn't come up with an explanation for that.",
       imageUrl,
       audioUrl,
       course,
       relatedResources: relatedResources || [],
+      prompt: input.prompt,
     };
     
     // Save to Firestore
@@ -199,20 +208,24 @@ const myTutorFlow = ai.defineFlow(
 
         const historyData = {
             ...finalResult,
-            imageUrl: imageUrl && imageUrl.length > 1048487 ? undefined : imageUrl,
-            prompt: input.prompt,
-            createdAt: new Date().toISOString(),
-            id: courseId,
-            courseId: courseId
+            id: courseId, // Ensure the document ID is saved within the document
+            createdAt: new Date().toISOString(), // Use a standardized timestamp
         };
         
+        // Remove excessively large image data URIs before saving if necessary
+        if (historyData.imageUrl && historyData.imageUrl.length > 1048487) {
+            historyData.imageUrl = undefined;
+        }
+
         await setDoc(courseDocRef, historyData);
-        finalResult.courseId = courseId;
+
+        // Attach the ID and createdAt timestamp to the object returned to the client
+        finalResult.id = courseId;
         finalResult.createdAt = historyData.createdAt;
 
     } catch(error) {
         console.error("Failed to save course history:", error);
-        // Don't block the response if saving fails
+        // Don't block the response if saving fails, just return the generated content
     }
 
     return finalResult;
