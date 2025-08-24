@@ -9,6 +9,7 @@ import { Switch } from '@/components/ui/switch';
 import { Label } from '@/components/ui/label';
 import { Textarea } from '@/components/ui/textarea';
 import { Accordion, AccordionContent, AccordionItem, AccordionTrigger } from '@/components/ui/accordion';
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { 
     BookCopy, 
     Upload, 
@@ -71,49 +72,15 @@ const LessonContentDisplay = ({ content }: { content: string }) => {
 }
 
 const CourseDisplay = ({ result }: { result: MyTutorOutput; }) => {
+    const [selectedVideoId, setSelectedVideoId] = useState<string | null>(null);
+
     if (!result.course) {
         return <p className="text-muted-foreground text-center py-8">No course content was generated.</p>;
     }
     
     const { title, overview, modules } = result.course;
-
-    const renderResource = (resource: NonNullable<MyTutorOutput['relatedResources']>[0]) => {
-        if (resource.type === 'video' && resource.videoId) {
-             return (
-                <div className="space-y-3">
-                    <div className="aspect-video overflow-hidden rounded-lg border">
-                        <iframe 
-                            width="100%" 
-                            height="100%" 
-                            src={`https://www.youtube.com/embed/${resource.videoId}`}
-                            title={resource.title} 
-                            frameBorder="0" 
-                            allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture" 
-                            allowFullScreen
-                        ></iframe>
-                    </div>
-                    <a href={resource.url} target="_blank" rel="noopener noreferrer" className="font-semibold text-primary hover:underline">{resource.title}</a>
-                </div>
-            )
-        }
-        
-        return (
-            <a 
-                href={resource.url} 
-                target="_blank" 
-                rel="noopener noreferrer"
-                className="block p-4 border rounded-md hover:bg-muted/50 transition-colors group"
-            >
-                <div className="flex items-start gap-3">
-                    <ResourceIcon type={resource.type} />
-                    <div className="flex-1">
-                        <p className="font-semibold text-primary group-hover:underline">{resource.title}</p>
-                        <p className="text-xs text-muted-foreground break-all">{resource.url}</p>
-                    </div>
-                </div>
-            </a>
-        )
-    }
+    const videoResources = result.relatedResources?.filter(r => r.type === 'video' && r.videoId) || [];
+    const otherResources = result.relatedResources?.filter(r => r.type !== 'video') || [];
 
     return (
         <Card className="mt-10">
@@ -168,11 +135,57 @@ const CourseDisplay = ({ result }: { result: MyTutorOutput; }) => {
                     </TabsContent>
                     <TabsContent value="resources">
                         <div className="space-y-6">
-                            {result.relatedResources?.map((resource, index) => (
-                                <div key={index}>
-                                    {renderResource(resource)}
+                            {videoResources.length > 0 && (
+                                <div className="space-y-4">
+                                     <Label>Recommended Videos</Label>
+                                    <Select onValueChange={setSelectedVideoId}>
+                                        <SelectTrigger>
+                                            <SelectValue placeholder="Select a video to watch" />
+                                        </SelectTrigger>
+                                        <SelectContent>
+                                            {videoResources.map((res, i) => (
+                                                <SelectItem key={i} value={res.videoId!}>{res.title}</SelectItem>
+                                            ))}
+                                        </SelectContent>
+                                    </Select>
+                                    {selectedVideoId && (
+                                        <div className="aspect-video overflow-hidden rounded-lg border mt-4">
+                                            <iframe 
+                                                width="100%" 
+                                                height="100%" 
+                                                src={`https://www.youtube.com/embed/${selectedVideoId}`}
+                                                title="YouTube video player" 
+                                                frameBorder="0" 
+                                                allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture" 
+                                                allowFullScreen
+                                            ></iframe>
+                                        </div>
+                                    )}
                                 </div>
-                            ))}
+                            )}
+
+                             {otherResources.length > 0 && (
+                                <div className="space-y-4 pt-4">
+                                    <Label>Articles & Other Resources</Label>
+                                    {otherResources.map((resource, index) => (
+                                         <a 
+                                            key={index}
+                                            href={resource.url} 
+                                            target="_blank" 
+                                            rel="noopener noreferrer"
+                                            className="block p-4 border rounded-md hover:bg-muted/50 transition-colors group"
+                                        >
+                                            <div className="flex items-start gap-3">
+                                                <ResourceIcon type={resource.type} />
+                                                <div className="flex-1">
+                                                    <p className="font-semibold text-primary group-hover:underline">{resource.title}</p>
+                                                    <p className="text-xs text-muted-foreground break-all">{resource.url}</p>
+                                                </div>
+                                            </div>
+                                        </a>
+                                    ))}
+                                </div>
+                             )}
                         </div>
                     </TabsContent>
                     <TabsContent value="visual">

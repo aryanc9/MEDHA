@@ -93,7 +93,7 @@ const tutorPrompt = ai.definePrompt({
     - Each module must contain multiple lessons.
     - Each lesson must have a title and detailed content formatted in Markdown. Use headings, bold text, and for lists, use a "- " marker for each item.
     
-    In addition to the main response, find 5-7 highly relevant external resources (like YouTube videos or in-depth articles) that would help the user understand the topic better. Provide the title, URL, and type for each resource. If a resource is a YouTube video, please extract and provide its unique video ID from the URL.
+    In addition to the main response, find 5-7 highly relevant external resources. For YouTube videos, ensure they are from reputable, educational channels and are publicly available to watch. Provide the title, URL, and type for each resource. If a resource is a YouTube video, please extract and provide its unique video ID from the URL.
     `
 });
 
