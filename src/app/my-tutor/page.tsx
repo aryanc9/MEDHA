@@ -77,6 +77,44 @@ const CourseDisplay = ({ result }: { result: MyTutorOutput; }) => {
     
     const { title, overview, modules } = result.course;
 
+    const renderResource = (resource: NonNullable<MyTutorOutput['relatedResources']>[0]) => {
+        if (resource.type === 'video' && resource.videoId) {
+             return (
+                <div className="space-y-3">
+                    <div className="aspect-video overflow-hidden rounded-lg border">
+                        <iframe 
+                            width="100%" 
+                            height="100%" 
+                            src={`https://www.youtube.com/embed/${resource.videoId}`}
+                            title={resource.title} 
+                            frameBorder="0" 
+                            allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture" 
+                            allowFullScreen
+                        ></iframe>
+                    </div>
+                    <a href={resource.url} target="_blank" rel="noopener noreferrer" className="font-semibold text-primary hover:underline">{resource.title}</a>
+                </div>
+            )
+        }
+        
+        return (
+            <a 
+                href={resource.url} 
+                target="_blank" 
+                rel="noopener noreferrer"
+                className="block p-4 border rounded-md hover:bg-muted/50 transition-colors group"
+            >
+                <div className="flex items-start gap-3">
+                    <ResourceIcon type={resource.type} />
+                    <div className="flex-1">
+                        <p className="font-semibold text-primary group-hover:underline">{resource.title}</p>
+                        <p className="text-xs text-muted-foreground break-all">{resource.url}</p>
+                    </div>
+                </div>
+            </a>
+        )
+    }
+
     return (
         <Card className="mt-10">
             <CardHeader>
@@ -129,23 +167,11 @@ const CourseDisplay = ({ result }: { result: MyTutorOutput; }) => {
                         </Accordion>
                     </TabsContent>
                     <TabsContent value="resources">
-                        <div className="grid sm:grid-cols-2 lg:grid-cols-3 gap-4">
+                        <div className="space-y-6">
                             {result.relatedResources?.map((resource, index) => (
-                                <a 
-                                    key={index} 
-                                    href={resource.url} 
-                                    target="_blank" 
-                                    rel="noopener noreferrer"
-                                    className="block p-4 border rounded-md hover:bg-muted/50 transition-colors group"
-                                >
-                                    <div className="flex items-start gap-3">
-                                        <ResourceIcon type={resource.type} />
-                                        <div className="flex-1">
-                                            <p className="font-semibold text-primary group-hover:underline">{resource.title}</p>
-                                            <p className="text-xs text-muted-foreground break-all">{resource.url}</p>
-                                        </div>
-                                    </div>
-                                </a>
+                                <div key={index}>
+                                    {renderResource(resource)}
+                                </div>
                             ))}
                         </div>
                     </TabsContent>
@@ -318,7 +344,7 @@ export default function MyTutorPage() {
                     <CardContent>
                         <Textarea 
                             value={courseStructure}
-                            onChange={(e) => setCourseStructure(e.target.value)}
+                            onChange={(e) => setCourseStructure(e.g.,value)}
                             placeholder="e.g.,&#10;Module 1: Introduction&#10; - Lesson 1.1: What is it?&#10; - Lesson 1.2: Key concepts&#10;Module 2: Advanced Topics..."
                             rows={8}
                         />
