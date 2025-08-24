@@ -1,3 +1,4 @@
+
 'use server';
 
 /**
@@ -12,11 +13,28 @@ import {ai} from '@/ai/genkit';
 import {z} from 'zod';
 import { toWav } from '@/lib/audio';
 
+const CourseStructureSchema = z.object({
+  title: z.string().optional(),
+  learningOutcomes: z.string().optional(),
+  courseSize: z.object({
+    modules: z.string().optional(),
+    lessonsPerModule: z.string().optional(),
+  }).optional(),
+  instructionalMethods: z.string().optional(),
+  additionalDetails: z.string().optional(),
+}).optional();
+
+
 const MyTutorInputSchema = z.object({
   prompt: z.string().describe('The user\'s question or topic to explain.'),
   image: z.string().optional().describe(
     "An optional image provided by the user, as a data URI that must include a MIME type and use Base64 encoding. Expected format: 'data:<mimetype>;base64,<encoded_data>'."
   ),
+  researchMode: z.boolean().optional().describe("If true, perform a deep search for the answer."),
+  sourceFile: z.string().optional().describe(
+    "A source file provided by the user, as a data URI that must include a MIME type and use Base64 encoding."
+  ),
+  courseStructure: CourseStructureSchema,
 });
 export type MyTutorInput = z.infer<typeof MyTutorInputSchema>;
 
@@ -25,6 +43,7 @@ const MyTutorOutputSchema = z.object({
   imageUrl: z.string().optional().describe('URL of a generated image to supplement the explanation, if applicable.'),
   audioUrl: z.string().optional().describe('URL of a generated audio of the text response.'),
   chartData: z.any().optional().describe('Data for a chart, if applicable. Must be an array of objects with string/number values.'),
+  courseContent: z.string().optional().describe("The generated course content based on the user's request."),
 });
 export type MyTutorOutput = z.infer<typeof MyTutorOutputSchema>;
 
@@ -39,17 +58,38 @@ const tutorPrompt = ai.definePrompt({
         explanation: z.string().describe('The detailed explanation to the user\'s prompt.'),
         imagePrompt: z.string().optional().describe('A prompt to generate a helpful image, if needed.'),
         chartData: z.any().optional().describe("JSON data for a chart to visualize the explanation, if applicable. For example, to show historical data. The data should be an array of objects, like `[{'month': 'Jan', 'temp': 10}, {'month': 'Feb', 'temp': 12}]`"),
+        courseContent: z.string().optional().describe("The generated course content based on the user's request. This should be a comprehensive course outline and content based on the prompt and any provided structure or source files. It should be well-formatted, likely using Markdown."),
     })},
-    prompt: `You are an expert AI tutor. Your goal is to explain complex topics in a clear and concise way. 
-    Analyze the user's prompt and any provided image.
-    Provide a textual explanation.
-    If an image would be helpful to illustrate the concept, provide a detailed prompt for an image generation model to create it. For example, 'a diagram of the water cycle' or 'a photorealistic image of the andromeda galaxy'.
-    If a chart or graph would be helpful, provide the data for it in a structured format (an array of objects).
+    prompt: `You are an expert AI course creator. Your goal is to generate a comprehensive course based on the user's request.
+
+    User Topic: {{{prompt}}}
+
+    {{#if researchMode}}
+    You are in research mode. Provide a deep, thorough, and detailed course on the topic. Go beyond a simple overview and include nuances, expert insights, and practical examples.
+    {{/if}}
+
+    {{#if sourceFile}}
+    You have been provided with a source file. Use the content of this file as the primary basis for the course generation.
+    Source File Content:
+    {{{sourceFile}}}
+    You can also use web sources to supplement the information if needed, but the provided file is the main context.
+    {{/if}}
+
+    {{#if courseStructure}}
+    The user has provided a desired structure for the course. Adhere to this structure as closely as possible.
     
-    User Prompt: {{{prompt}}}
+    Course Title: {{courseStructure.title}}
+    Learning Outcomes: {{courseStructure.learningOutcomes}}
+    Course Size: {{courseStructure.courseSize.modules}} modules, with {{courseStructure.courseSize.lessonsPerModule}} lessons per module.
+    Instructional Methods: {{courseStructure.instructionalMethods}}
+    Additional Details: {{courseructure.additionalDetails}}
+    {{/if}}
+
     {{#if image}}
     User Image: {{media url=image}}
     {{/if}}
+
+    Based on all the provided information, generate the course content.
     `
 });
 
@@ -65,7 +105,7 @@ const myTutorFlow = ai.defineFlow(
       throw new Error('Failed to get a response from the tutor prompt.');
     }
 
-    const { explanation, imagePrompt, chartData } = output;
+    const { explanation, imagePrompt, chartData, courseContent } = output;
 
     const promises: [Promise<string | undefined>, Promise<string | undefined>] = [
         Promise.resolve(undefined),
@@ -116,6 +156,9 @@ const myTutorFlow = ai.defineFlow(
       imageUrl,
       audioUrl,
       chartData,
+      courseContent: courseContent || "Could not generate course content.",
     };
   }
 );
+
+    
