@@ -1,7 +1,7 @@
 
 'use client';
 
-import React, { useState } from 'react';
+import React, { useState, useEffect, useRef } from 'react';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from '@/components/ui/card';
 import { Input } from '@/components/ui/input';
@@ -26,12 +26,28 @@ import {
     ChevronRight,
     BookText,
     Video,
-    Image as ImageIcon
+    Image as ImageIcon,
+    MessageSquare,
+    Mic,
+    Send,
+    Volume2,
+    User as UserIcon,
+    Bot
 } from 'lucide-react';
 import { myTutor, MyTutorOutput } from '@/ai/flows/my-tutor';
+import { talkBuddy, TalkBuddyOutput } from '@/ai/flows/talk-buddy';
 import { useToast } from '@/hooks/use-toast';
 import Image from 'next/image';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
+import { ScrollArea } from '@/components/ui/scroll-area';
+
+// Add SpeechRecognition types for browser compatibility
+declare global {
+  interface Window {
+    SpeechRecognition: any;
+    webkitSpeechRecognition: any;
+  }
+}
 
 const ResourceIcon = ({ type }: { type: string }) => {
     switch (type) {
@@ -48,7 +64,7 @@ const LessonContentDisplay = ({ content }: { content: string }) => {
     return (
         <div className="prose prose-sm dark:prose-invert max-w-none space-y-4">
             {content.split('\n').map((line, index) => {
-                if (line.startsWith('- ')) {
+                 if (line.startsWith('- ')) {
                     return (
                         <div key={index} className="flex items-start gap-3">
                             <ChevronRight className="h-4 w-4 mt-1 text-primary flex-shrink-0" />
@@ -205,7 +221,146 @@ const CourseDisplay = ({ result }: { result: MyTutorOutput; }) => {
     )
 }
 
+const TalkBuddyDisplay = () => {
+    const [language, setLanguage] = useState('English');
+    const [messages, setMessages] = useState<{ sender: 'user' | 'bot'; text: string; audioUrl?: string }[]>([]);
+    const [userInput, setUserInput] = useState('');
+    const [isLoading, setIsLoading] = useState(false);
+    const [isListening, setIsListening] = useState(false);
+    const recognitionRef = useRef<any>(null);
+    const audioRef = useRef<HTMLAudioElement>(null);
+    const scrollAreaRef = useRef<HTMLDivElement>(null);
+    const { toast } = useToast();
+
+    useEffect(() => {
+        const SpeechRecognition = window.SpeechRecognition || window.webkitSpeechRecognition;
+        if (SpeechRecognition) {
+            recognitionRef.current = new SpeechRecognition();
+            recognitionRef.current.continuous = false;
+            recognitionRef.current.interimResults = false;
+            recognitionRef.current.lang = 'en-US'; // This can be changed dynamically
+
+            recognitionRef.current.onresult = (event: any) => {
+                const transcript = event.results[0][0].transcript;
+                setUserInput(transcript);
+                handleSendMessage(transcript); 
+            };
+            recognitionRef.current.onerror = (event: any) => {
+                toast({ title: "Speech Recognition Error", description: event.error, variant: "destructive" });
+                setIsListening(false);
+            };
+            recognitionRef.current.onend = () => {
+                setIsListening(false);
+            };
+        }
+    }, [toast]);
+    
+     useEffect(() => {
+        if (scrollAreaRef.current) {
+            scrollAreaRef.current.scrollTop = scrollAreaRef.current.scrollHeight;
+        }
+    }, [messages]);
+
+    const handleSendMessage = async (text: string) => {
+        const currentMessage = text.trim();
+        if (!currentMessage) return;
+
+        setMessages(prev => [...prev, { sender: 'user', text: currentMessage }]);
+        setUserInput('');
+        setIsLoading(true);
+
+        try {
+            const response = await talkBuddy({ prompt: currentMessage, language });
+            setMessages(prev => [...prev, { sender: 'bot', text: response.responseText, audioUrl: response.audioUrl }]);
+            if (response.audioUrl && audioRef.current) {
+                audioRef.current.src = response.audioUrl;
+                audioRef.current.play().catch(e => console.error("Audio playback failed", e));
+            }
+        } catch (error) {
+            console.error("Talk Buddy failed:", error);
+            toast({ title: "Error", description: "Talk Buddy failed to respond.", variant: "destructive" });
+        } finally {
+            setIsLoading(false);
+        }
+    };
+    
+    const handleListen = () => {
+        if (isListening || !recognitionRef.current) return;
+        setIsListening(true);
+        recognitionRef.current.start();
+    }
+    
+    return (
+        <Card className="mt-10">
+            <CardHeader>
+                <CardTitle className="flex items-center gap-2"><Bot /> Talk Buddy</CardTitle>
+                <CardDescription>Have a real-time conversation with your AI tutor in any language.</CardDescription>
+            </CardHeader>
+            <CardContent>
+                <div className="flex flex-col h-[600px] border rounded-lg">
+                    <div className="p-4 border-b">
+                        <Select value={language} onValueChange={setLanguage}>
+                            <SelectTrigger className="w-[180px]">
+                                <SelectValue placeholder="Select language" />
+                            </SelectTrigger>
+                            <SelectContent>
+                                <SelectItem value="English">English</SelectItem>
+                                <SelectItem value="Spanish">Spanish</SelectItem>
+                                <SelectItem value="French">French</SelectItem>
+                                <SelectItem value="German">German</SelectItem>
+                                <SelectItem value="Hindi">Hindi</SelectItem>
+                                <SelectItem value="Japanese">Japanese</SelectItem>
+                            </SelectContent>
+                        </Select>
+                    </div>
+                    <ScrollArea className="flex-1 p-4" ref={scrollAreaRef}>
+                        <div className="space-y-4">
+                            {messages.map((msg, index) => (
+                                <div key={index} className={`flex items-start gap-3 ${msg.sender === 'user' ? 'justify-end' : ''}`}>
+                                    {msg.sender === 'bot' && <div className="bg-primary text-primary-foreground rounded-full h-8 w-8 flex items-center justify-center flex-shrink-0"><Bot className="h-5 w-5"/></div>}
+                                    <div className={`rounded-lg px-4 py-2 max-w-sm ${msg.sender === 'bot' ? 'bg-muted' : 'bg-primary text-primary-foreground'}`}>
+                                        <p>{msg.text}</p>
+                                    </div>
+                                    {msg.sender === 'user' && <div className="bg-muted rounded-full h-8 w-8 flex items-center justify-center flex-shrink-0"><UserIcon className="h-5 w-5"/></div>}
+                                </div>
+                            ))}
+                            {isLoading && (
+                                <div className="flex items-start gap-3">
+                                    <div className="bg-primary text-primary-foreground rounded-full h-8 w-8 flex items-center justify-center flex-shrink-0"><Bot className="h-5 w-5"/></div>
+                                    <div className="rounded-lg px-4 py-2 bg-muted flex items-center">
+                                        <Loader2 className="h-5 w-5 animate-spin"/>
+                                    </div>
+                                </div>
+                            )}
+                        </div>
+                    </ScrollArea>
+                    <div className="p-4 border-t bg-background">
+                        <div className="flex items-center gap-2">
+                             <Input 
+                                value={userInput}
+                                onChange={e => setUserInput(e.target.value)}
+                                onKeyDown={e => e.key === 'Enter' && handleSendMessage(userInput)}
+                                placeholder="Ask your buddy anything..."
+                                disabled={isLoading}
+                             />
+                             <Button onClick={() => handleSendMessage(userInput)} disabled={isLoading || !userInput}>
+                                <Send className="h-5 w-5"/>
+                             </Button>
+                             <Button variant="outline" onClick={handleListen} disabled={isListening || isLoading}>
+                                {isListening ? <Volume2 className="h-5 w-5 animate-pulse text-red-500"/> : <Mic className="h-5 w-5"/>}
+                             </Button>
+                        </div>
+                    </div>
+                </div>
+                 <audio ref={audioRef} style={{ display: 'none' }} />
+            </CardContent>
+        </Card>
+    );
+}
+
+
 export default function MyTutorPage() {
+  const [activeTab, setActiveTab] = useState('create');
   const [topic, setTopic] = useState('');
   const [isResearchMode, setIsResearchMode] = useState(false);
   const [useOwnSources, setUseOwnSources] = useState(false);
@@ -266,135 +421,146 @@ export default function MyTutorPage() {
       <div className="text-center mb-10">
         <h1 className="text-4xl font-bold tracking-tight font-headline">My AI Tutor</h1>
         <p className="text-muted-foreground mt-2 max-w-2xl mx-auto">
-          Generate a personalized course on any topic, tailored to your needs.
+          Generate a personalized course or chat with your AI buddy.
         </p>
       </div>
-
-      <form onSubmit={handleCreateCourse} className="space-y-8">
-        <Card>
-          <CardHeader>
-            <CardTitle className="flex items-center gap-2"><Sparkles className="text-primary"/> 1. Define Your Topic</CardTitle>
-            <CardDescription>What would you like to learn about today?</CardDescription>
-          </CardHeader>
-          <CardContent>
-            <div className="relative">
-              <Input
-                value={topic}
-                onChange={(e) => setTopic(e.target.value)}
-                placeholder="e.g., 'The fundamentals of machine learning'"
-                className="h-12 text-lg"
-              />
-            </div>
-            <div className="mt-4 flex flex-wrap gap-2">
-                {suggestedTopics.map(t => (
-                    <Button key={t} type="button" variant="outline" size="sm" onClick={() => setTopic(t)}>{t}</Button>
-                ))}
-            </div>
-          </CardContent>
-        </Card>
-        
-        <Card>
-            <CardHeader>
-                <CardTitle className="flex items-center gap-2"><BrainCircuit className="text-primary"/> 2. Customize Your Learning</CardTitle>
-                <CardDescription>Refine how the AI generates your course content.</CardDescription>
-            </CardHeader>
-            <CardContent className="grid md:grid-cols-2 lg:grid-cols-3 gap-6">
-                <div className="flex items-start space-x-4 rounded-lg border p-4">
-                    <Search className="h-6 w-6 mt-1 text-primary"/>
-                    <div className="space-y-1 flex-1">
-                        <Label htmlFor="research-mode" className="font-semibold">Research Mode</Label>
-                        <p className="text-xs text-muted-foreground">Perform a deeper, more thorough search for content.</p>
+      
+       <Tabs value={activeTab} onValueChange={setActiveTab} className="w-full">
+        <TabsList className="grid w-full grid-cols-2">
+          <TabsTrigger value="create"><BookCopy className="mr-2"/> Create Course</TabsTrigger>
+          <TabsTrigger value="buddy"><MessageSquare className="mr-2"/> Talk Buddy</TabsTrigger>
+        </TabsList>
+        <TabsContent value="create">
+             <form onSubmit={handleCreateCourse} className="space-y-8 mt-6">
+                <Card>
+                  <CardHeader>
+                    <CardTitle className="flex items-center gap-2"><Sparkles className="text-primary"/> 1. Define Your Topic</CardTitle>
+                    <CardDescription>What would you like to learn about today?</CardDescription>
+                  </CardHeader>
+                  <CardContent>
+                    <div className="relative">
+                      <Input
+                        value={topic}
+                        onChange={(e) => setTopic(e.target.value)}
+                        placeholder="e.g., 'The fundamentals of machine learning'"
+                        className="h-12 text-lg"
+                      />
                     </div>
-                    <Switch id="research-mode" checked={isResearchMode} onCheckedChange={setIsResearchMode} />
-                </div>
-                <div className="flex items-start space-x-4 rounded-lg border p-4">
-                    <Upload className="h-6 w-6 mt-1 text-primary"/>
-                    <div className="space-y-1 flex-1">
-                        <Label htmlFor="own-sources" className="font-semibold">Use Own Sources</Label>
-                        <p className="text-xs text-muted-foreground">Upload a document to use as the primary source.</p>
+                    <div className="mt-4 flex flex-wrap gap-2">
+                        {suggestedTopics.map(t => (
+                            <Button key={t} type="button" variant="outline" size="sm" onClick={() => setTopic(t)}>{t}</Button>
+                        ))}
                     </div>
-                     <Switch id="own-sources" checked={useOwnSources} onCheckedChange={setUseOwnSources} />
-                </div>
-                 <div className="flex items-start space-x-4 rounded-lg border p-4">
-                    <ClipboardList className="h-6 w-6 mt-1 text-primary"/>
-                    <div className="space-y-1 flex-1">
-                        <Label htmlFor="define-structure" className="font-semibold">Define Structure</Label>
-                        <p className="text-xs text-muted-foreground">Provide a custom plan or outline for the course.</p>
-                    </div>
-                     <Switch id="define-structure" checked={defineStructure} onCheckedChange={setDefineStructure} />
-                </div>
-            </CardContent>
-        </Card>
-
-        <div className="grid md:grid-cols-2 gap-8">
-            {useOwnSources && (
+                  </CardContent>
+                </Card>
+                
                 <Card>
                     <CardHeader>
-                        <CardTitle>Upload Your Source</CardTitle>
-                        <CardDescription>Upload a text file (.txt, .md) to use as the knowledge base.</CardDescription>
+                        <CardTitle className="flex items-center gap-2"><BrainCircuit className="text-primary"/> 2. Customize Your Learning</CardTitle>
+                        <CardDescription>Refine how the AI generates your course content.</CardDescription>
                     </CardHeader>
-                    <CardContent>
-                        <div className="border-2 border-dashed border-muted-foreground/30 rounded-xl p-6 flex flex-col items-center justify-center text-center">
-                            <FileUp className="h-10 w-10 text-muted-foreground mb-3" />
-                            <p className="font-semibold mb-2">{fileName || 'Drop your file here'}</p>
-                            <Button asChild variant="outline" size="sm">
-                                <label>
-                                    Select File
-                                    <Input type="file" accept=".txt,.md" className="hidden" onChange={handleFileChange} />
-                                </label>
-                            </Button>
+                    <CardContent className="grid md:grid-cols-2 lg:grid-cols-3 gap-6">
+                        <div className="flex items-start space-x-4 rounded-lg border p-4">
+                            <Search className="h-6 w-6 mt-1 text-primary"/>
+                            <div className="space-y-1 flex-1">
+                                <Label htmlFor="research-mode" className="font-semibold">Research Mode</Label>
+                                <p className="text-xs text-muted-foreground">Perform a deeper, more thorough search for content.</p>
+                            </div>
+                            <Switch id="research-mode" checked={isResearchMode} onCheckedChange={setIsResearchMode} />
+                        </div>
+                        <div className="flex items-start space-x-4 rounded-lg border p-4">
+                            <Upload className="h-6 w-6 mt-1 text-primary"/>
+                            <div className="space-y-1 flex-1">
+                                <Label htmlFor="own-sources" className="font-semibold">Use Own Sources</Label>
+                                <p className="text-xs text-muted-foreground">Upload a document to use as the primary source.</p>
+                            </div>
+                             <Switch id="own-sources" checked={useOwnSources} onCheckedChange={setUseOwnSources} />
+                        </div>
+                         <div className="flex items-start space-x-4 rounded-lg border p-4">
+                            <ClipboardList className="h-6 w-6 mt-1 text-primary"/>
+                            <div className="space-y-1 flex-1">
+                                <Label htmlFor="define-structure" className="font-semibold">Define Structure</Label>
+                                <p className="text-xs text-muted-foreground">Provide a custom plan or outline for the course.</p>
+                            </div>
+                             <Switch id="define-structure" checked={defineStructure} onCheckedChange={setDefineStructure} />
                         </div>
                     </CardContent>
                 </Card>
-            )}
 
-            {defineStructure && (
-                 <Card className={!useOwnSources ? "md:col-span-2" : ""}>
-                    <CardHeader>
-                        <CardTitle>Define Course Structure</CardTitle>
-                        <CardDescription>Provide an outline or plan for the AI to follow.</CardDescription>
-                    </CardHeader>
-                    <CardContent>
-                        <Textarea 
-                            value={courseStructure}
-                            onChange={(e) => setCourseStructure(e.target.value)}
-                            placeholder="e.g.,&#10;Module 1: Introduction&#10; - Lesson 1.1: What is it?&#10; - Lesson 1.2: Key concepts&#10;Module 2: Advanced Topics..."
-                            rows={8}
-                        />
-                    </CardContent>
-                </Card>
-            )}
-        </div>
+                <div className="grid md:grid-cols-2 gap-8">
+                    {useOwnSources && (
+                        <Card>
+                            <CardHeader>
+                                <CardTitle>Upload Your Source</CardTitle>
+                                <CardDescription>Upload a text file (.txt, .md) to use as the knowledge base.</CardDescription>
+                            </CardHeader>
+                            <CardContent>
+                                <div className="border-2 border-dashed border-muted-foreground/30 rounded-xl p-6 flex flex-col items-center justify-center text-center">
+                                    <FileUp className="h-10 w-10 text-muted-foreground mb-3" />
+                                    <p className="font-semibold mb-2">{fileName || 'Drop your file here'}</p>
+                                    <Button asChild variant="outline" size="sm">
+                                        <label>
+                                            Select File
+                                            <Input type="file" accept=".txt,.md" className="hidden" onChange={handleFileChange} />
+                                        </label>
+                                    </Button>
+                                </div>
+                            </CardContent>
+                        </Card>
+                    )}
+
+                    {defineStructure && (
+                         <Card className={!useOwnSources ? "md:col-span-2" : ""}>
+                            <CardHeader>
+                                <CardTitle>Define Course Structure</CardTitle>
+                                <CardDescription>Provide an outline or plan for the AI to follow.</CardDescription>
+                            </CardHeader>
+                            <CardContent>
+                                <Textarea 
+                                    value={courseStructure}
+                                    onChange={(e) => setCourseStructure(e.target.value)}
+                                    placeholder="e.g.,&#10;Module 1: Introduction&#10; - Lesson 1.1: What is it?&#10; - Lesson 1.2: Key concepts&#10;Module 2: Advanced Topics..."
+                                    rows={8}
+                                />
+                            </CardContent>
+                        </Card>
+                    )}
+                </div>
 
 
-        <div className="text-center">
-          <Button type="submit" size="lg" disabled={loading}>
-            {loading ? (
-              <>
-                <Loader2 className="mr-2 h-5 w-5 animate-spin" />
-                Generating Your Course...
-              </>
-            ) : (
-              <>
-                <BookCopy className="mr-2 h-5 w-5" />
-                Create My Course
-              </>
-            )}
-          </Button>
-        </div>
+                <div className="text-center">
+                  <Button type="submit" size="lg" disabled={loading}>
+                    {loading ? (
+                      <>
+                        <Loader2 className="mr-2 h-5 w-5 animate-spin" />
+                        Generating Your Course...
+                      </>
+                    ) : (
+                      <>
+                        <BookCopy className="mr-2 h-5 w-5" />
+                        Create My Course
+                      </>
+                    )}
+                  </Button>
+                </div>
 
-        {loading && (
-             <Card className="mt-6">
-                <CardContent className="p-10 flex flex-col items-center justify-center text-center">
-                    <Loader2 className="h-12 w-12 animate-spin text-primary mb-4" />
-                    <p className="text-lg font-medium text-muted-foreground">Our AI is crafting your personalized course...</p>
-                    <p className="text-sm text-muted-foreground">This may take a moment.</p>
-                </CardContent>
-            </Card>
-        )}
+                {loading && (
+                     <Card className="mt-6">
+                        <CardContent className="p-10 flex flex-col items-center justify-center text-center">
+                            <Loader2 className="h-12 w-12 animate-spin text-primary mb-4" />
+                            <p className="text-lg font-medium text-muted-foreground">Our AI is crafting your personalized course...</p>
+                            <p className="text-sm text-muted-foreground">This may take a moment.</p>
+                        </CardContent>
+                    </Card>
+                )}
 
-        {result && <CourseDisplay result={result} />}
-      </form>
+                {result && <CourseDisplay result={result} />}
+              </form>
+        </TabsContent>
+        <TabsContent value="buddy">
+            <TalkBuddyDisplay />
+        </TabsContent>
+       </Tabs>
     </div>
   );
 }
