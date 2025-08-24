@@ -1,0 +1,35 @@
+rules_version = '2';
+
+service cloud.firestore {
+  match /databases/{database}/documents {
+  
+    // Users can only create, read, and write their own user document.
+    match /users/{userId} {
+      allow create: if request.auth.uid == userId;
+      allow read, write: if request.auth.uid == userId;
+    }
+
+    // Quizzes are readable by any authenticated user, but not writable.
+    // This allows for future admin roles to manage quiz content.
+    match /quizzes/{quizId} {
+      allow read: if request.auth.uid != null;
+      allow write: if false; // To be implemented with admin roles
+    }
+
+    // Users can create their own quiz results and read them back.
+    match /quizResults/{resultId} {
+      allow read, create: if request.auth.uid == request.resource.data.userId;
+      allow update, delete: if false;
+    }
+
+    // Users can manage their own essay submissions.
+    match /essays/{essayId} {
+      allow read, write, create: if request.auth.uid == request.resource.data.userId;
+    }
+
+    // Users can manage their own learning path data.
+    match /learningPaths/{pathId} {
+       allow read, write, create: if request.auth.uid == request.resource.data.userId;
+    }
+  }
+}
