@@ -8,6 +8,7 @@ import { Input } from '@/components/ui/input';
 import { Switch } from '@/components/ui/switch';
 import { Label } from '@/components/ui/label';
 import { Textarea } from '@/components/ui/textarea';
+import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { 
     BookCopy, 
     Upload, 
@@ -19,7 +20,10 @@ import {
     FileUp,
     Sparkles,
     BrainCircuit,
-    ClipboardList
+    ClipboardList,
+    BookOpen,
+    GalleryHorizontal,
+    GraduationCap
 } from 'lucide-react';
 import { myTutor, MyTutorOutput } from '@/ai/flows/my-tutor';
 import { useToast } from '@/hooks/use-toast';
@@ -44,8 +48,6 @@ export default function MyTutorPage() {
       const reader = new FileReader();
       reader.onload = (event) => {
         const textContent = event.target?.result as string;
-        // For simplicity, we're assuming text files. For data URI, we would use readAsDataURL.
-        // Let's stick to text for the source file to keep the prompt cleaner.
          setSourceFile(textContent);
          setFileName(file.name);
       };
@@ -104,7 +106,6 @@ export default function MyTutorPage() {
       </div>
 
       <form onSubmit={handleCreateCourse} className="space-y-8">
-        {/* Input Card */}
         <Card>
           <CardHeader>
             <CardTitle className="flex items-center gap-2"><Sparkles className="text-primary"/> 1. Define Your Topic</CardTitle>
@@ -127,7 +128,6 @@ export default function MyTutorPage() {
           </CardContent>
         </Card>
         
-        {/* Customization Card */}
         <Card>
             <CardHeader>
                 <CardTitle className="flex items-center gap-2"><BrainCircuit className="text-primary"/> 2. Customize Your Learning</CardTitle>
@@ -161,7 +161,6 @@ export default function MyTutorPage() {
             </CardContent>
         </Card>
 
-        {/* Dynamic Sections */}
         <div className="grid md:grid-cols-2 gap-8">
             {useOwnSources && (
                 <Card>
@@ -219,7 +218,6 @@ export default function MyTutorPage() {
           </Button>
         </div>
 
-        {/* Results Section */}
         {loading && (
              <Card className="mt-6">
                 <CardContent className="p-10 flex flex-col items-center justify-center text-center">
@@ -234,55 +232,61 @@ export default function MyTutorPage() {
              <Card className="mt-10">
                 <CardHeader>
                     <CardTitle className="text-3xl font-headline">Your Course on "{topic}"</CardTitle>
-                    <CardDescription>{result.explanation}</CardDescription>
-                     {result.audioUrl && (
-                        <div className="pt-4">
+                    <CardDescription className="pt-2">{result.explanation}</CardDescription>
+                </CardHeader>
+                <CardContent className="space-y-8">
+                    {result.audioUrl && (
+                        <div className="pt-2">
                             <audio controls src={result.audioUrl} className="w-full">
                                 Your browser does not support the audio element.
                             </audio>
                         </div>
                     )}
-                </CardHeader>
-                <CardContent className="space-y-8">
-                    {result.imageUrl && (
-                        <div className="relative aspect-video w-full overflow-hidden rounded-lg">
-                             <Image src={result.imageUrl} alt="Generated image for the course" layout="fill" objectFit="cover" />
-                        </div>
-                    )}
                     
-                    {result.courseContent && (
-                        <div>
-                             <h3 className="font-bold text-2xl mb-4 font-headline">Course Content</h3>
-                             <div className="prose prose-lg dark:prose-invert max-w-none whitespace-pre-wrap font-sans">
-                                {result.courseContent}
-                             </div>
-                        </div>
-                    )}
-
-                    {result.relatedResources && result.relatedResources.length > 0 && (
-                        <div>
-                            <h3 className="font-bold text-2xl mb-4 font-headline">Further Learning</h3>
-                            <div className="grid sm:grid-cols-2 lg:grid-cols-3 gap-4">
-                                {result.relatedResources.map((resource, index) => (
-                                    <a 
-                                        key={index} 
-                                        href={resource.url} 
-                                        target="_blank" 
-                                        rel="noopener noreferrer"
-                                        className="block p-4 bg-muted/50 rounded-md hover:bg-muted/80 transition-colors group"
-                                    >
-                                        <div className="flex items-start gap-3">
-                                            <ResourceIcon type={resource.type} />
-                                            <div className="flex-1">
-                                                <p className="font-semibold text-primary group-hover:underline">{resource.title}</p>
-                                                <p className="text-xs text-muted-foreground break-all">{resource.url}</p>
+                    <Tabs defaultValue="content" className="w-full">
+                        <TabsList className="grid w-full grid-cols-3">
+                            <TabsTrigger value="content"><BookOpen className="mr-2"/>Course Content</TabsTrigger>
+                            <TabsTrigger value="visual" disabled={!result.imageUrl}><GalleryHorizontal className="mr-2"/>Visual Aid</TabsTrigger>
+                            <TabsTrigger value="resources" disabled={!result.relatedResources || result.relatedResources.length === 0}><GraduationCap className="mr-2"/>Further Learning</TabsTrigger>
+                        </TabsList>
+                        <TabsContent value="content" className="mt-4">
+                             {result.courseContent ? (
+                                 <div className="prose prose-lg dark:prose-invert max-w-none rounded-lg border bg-muted/20 p-6 whitespace-pre-wrap font-sans">
+                                    {result.courseContent}
+                                 </div>
+                             ) : <p className="text-muted-foreground text-center py-8">No course content was generated.</p>}
+                        </TabsContent>
+                        <TabsContent value="visual" className="mt-4">
+                            {result.imageUrl && (
+                                <div className="relative aspect-video w-full overflow-hidden rounded-lg border">
+                                     <Image src={result.imageUrl} alt="Generated image for the course" layout="fill" objectFit="cover" />
+                                </div>
+                            )}
+                        </TabsContent>
+                        <TabsContent value="resources" className="mt-4">
+                             {result.relatedResources && result.relatedResources.length > 0 && (
+                                <div className="grid sm:grid-cols-2 lg:grid-cols-3 gap-4">
+                                    {result.relatedResources.map((resource, index) => (
+                                        <a 
+                                            key={index} 
+                                            href={resource.url} 
+                                            target="_blank" 
+                                            rel="noopener noreferrer"
+                                            className="block p-4 border rounded-md hover:bg-muted/50 transition-colors group"
+                                        >
+                                            <div className="flex items-start gap-3">
+                                                <ResourceIcon type={resource.type} />
+                                                <div className="flex-1">
+                                                    <p className="font-semibold text-primary group-hover:underline">{resource.title}</p>
+                                                    <p className="text-xs text-muted-foreground break-all">{resource.url}</p>
+                                                </div>
                                             </div>
-                                        </div>
-                                    </a>
-                                ))}
-                            </div>
-                        </div>
-                    )}
+                                        </a>
+                                    ))}
+                                </div>
+                            )}
+                        </TabsContent>
+                    </Tabs>
                 </CardContent>
             </Card>
         )}
