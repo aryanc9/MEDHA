@@ -44,6 +44,11 @@ const MyTutorOutputSchema = z.object({
   audioUrl: z.string().optional().describe('URL of a generated audio of the text response.'),
   chartData: z.any().optional().describe('Data for a chart, if applicable. Must be an array of objects with string/number values.'),
   courseContent: z.string().optional().describe("The generated course content based on the user's request."),
+  relatedResources: z.array(z.object({
+    title: z.string(),
+    url: z.string(),
+    type: z.enum(['video', 'article', 'other']),
+  })).optional().describe('A list of related resources like YouTube videos or articles.'),
 });
 export type MyTutorOutput = z.infer<typeof MyTutorOutputSchema>;
 
@@ -59,8 +64,13 @@ const tutorPrompt = ai.definePrompt({
         imagePrompt: z.string().optional().describe('A prompt to generate a helpful image, if needed.'),
         chartData: z.any().optional().describe("JSON data for a chart to visualize the explanation, if applicable. For example, to show historical data. The data should be an array of objects, like `[{'month': 'Jan', 'temp': 10}, {'month': 'Feb', 'temp': 12}]`"),
         courseContent: z.string().optional().describe("The generated course content based on the user's request. This should be a comprehensive course outline and content based on the prompt and any provided structure or source files. It should be well-formatted, likely using Markdown."),
+        relatedResources: z.array(z.object({
+            title: z.string().describe("The title of the resource."),
+            url: z.string().url().describe("The URL of the resource."),
+            type: z.enum(['video', 'article', 'other']).describe("The type of the resource."),
+        })).optional().describe("A list of 2-3 relevant external resources like YouTube videos or articles."),
     })},
-    prompt: `You are an expert AI course creator. Your goal is to generate a comprehensive course based on the user's request.
+    prompt: `You are an expert AI course creator and tutor. Your goal is to generate a comprehensive course or provide a detailed explanation based on the user's request. Also find relevant external resources to supplement your answer.
 
     User Topic: {{{prompt}}}
 
@@ -89,7 +99,9 @@ const tutorPrompt = ai.definePrompt({
     User Image: {{media url=image}}
     {{/if}}
 
-    Based on all the provided information, generate the course content.
+    Based on all the provided information, generate the course content or a detailed explanation.
+    
+    In addition to the main response, find 2-3 highly relevant external resources (like YouTube videos or in-depth articles) that would help the user understand the topic better. Provide the title, URL, and type for each resource.
     `
 });
 
@@ -105,7 +117,7 @@ const myTutorFlow = ai.defineFlow(
       throw new Error('Failed to get a response from the tutor prompt.');
     }
 
-    const { explanation, imagePrompt, chartData, courseContent } = output;
+    const { explanation, imagePrompt, chartData, courseContent, relatedResources } = output;
 
     const promises: [Promise<string | undefined>, Promise<string | undefined>] = [
         Promise.resolve(undefined),
@@ -157,8 +169,7 @@ const myTutorFlow = ai.defineFlow(
       audioUrl,
       chartData,
       courseContent: courseContent || "Could not generate course content.",
+      relatedResources,
     };
   }
 );
-
-    

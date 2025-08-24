@@ -23,7 +23,9 @@ import {
     Plus,
     Minus,
     Search,
-    Loader2
+    Loader2,
+    Youtube,
+    Newspaper
 } from 'lucide-react';
 import { cn } from '@/lib/utils';
 import { Separator } from '@/components/ui/separator';
@@ -175,6 +177,17 @@ export default function MyTutorPage() {
     }
   };
 
+
+  const ResourceIcon = ({ type }: { type: string }) => {
+    switch (type) {
+        case 'video':
+            return <Youtube className="h-5 w-5 text-red-500" />;
+        case 'article':
+            return <Newspaper className="h-5 w-5 text-blue-500" />;
+        default:
+            return <Info className="h-5 w-5 text-gray-500" />;
+    }
+  };
 
   return (
     <div className="flex-1 p-4 sm:p-6 overflow-y-auto">
@@ -339,8 +352,30 @@ export default function MyTutorPage() {
                             </div>
                         )}
                         {result && (
-                            <div className="prose dark:prose-invert max-w-none">
-                                <pre className="whitespace-pre-wrap font-sans">{result.courseContent}</pre>
+                            <div className="space-y-6">
+                                <div className="prose dark:prose-invert max-w-none">
+                                    <pre className="whitespace-pre-wrap font-sans">{result.courseContent}</pre>
+                                </div>
+
+                                {result.relatedResources && result.relatedResources.length > 0 && (
+                                    <div>
+                                        <h3 className="font-semibold mb-3 text-lg">Related Resources</h3>
+                                        <div className="space-y-3">
+                                            {result.relatedResources.map((resource, index) => (
+                                                <a 
+                                                    key={index} 
+                                                    href={resource.url} 
+                                                    target="_blank" 
+                                                    rel="noopener noreferrer"
+                                                    className="flex items-center gap-3 p-3 bg-muted/50 rounded-md hover:bg-muted"
+                                                >
+                                                    <ResourceIcon type={resource.type} />
+                                                    <span className="font-medium text-primary hover:underline">{resource.title}</span>
+                                                </a>
+                                            ))}
+                                        </div>
+                                    </div>
+                                )}
                             </div>
                         )}
                     </CardContent>
@@ -351,5 +386,3 @@ export default function MyTutorPage() {
     </div>
   );
 }
-
-    
