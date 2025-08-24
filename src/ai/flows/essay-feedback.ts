@@ -10,7 +10,7 @@
 
 import {ai} from '@/ai/genkit';
 import {z} from 'genkit';
-import { getFirestore, doc, setDoc, serverTimestamp } from 'firebase/firestore';
+import { getFirestore, doc, setDoc, serverTimestamp, collection } from 'firebase/firestore';
 import { firebaseApp } from '@/lib/firebase';
 
 const db = getFirestore(firebaseApp);
@@ -56,7 +56,7 @@ const prompt = ai.definePrompt({
 - Grammar: Provide feedback on the grammar of the essay.
 - Coherence: Provide feedback on the coherence of the essay. Does the essay flow well?
 - Relevance: Provide feedback on the relevance of the essay to the topic. Does the essay address the topic?
-- Creativity: Provide feedback on the creativity of the essay. Is the essay original and engaging?
+- Creativity: Provide feedback on the creativity of the essay. Is the original and engaging?
 
 Ensure that the feedback is appropriate for a {{gradeLevel}} student. Do not be condescending, encourage the student.
 
@@ -78,7 +78,7 @@ const essayFeedbackFlow = ai.defineFlow(
     }
 
     // 2. Save essay and feedback to Firestore
-    const essayDocRef = doc(db, 'users', input.userId, 'essays', new Date().toISOString());
+    const essayDocRef = doc(collection(db, 'users', input.userId, 'essays'));
     
     await setDoc(essayDocRef, {
       ...input,

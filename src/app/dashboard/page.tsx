@@ -2,7 +2,7 @@
 'use client';
 
 import { useEffect, useState } from 'react';
-import { BookOpenCheck, BrainCircuit, Route, Loader2 } from 'lucide-react';
+import { BookOpenCheck, BrainCircuit, Route, Loader2, History } from 'lucide-react';
 import { WelcomeHeader } from '@/components/dashboard/WelcomeHeader';
 import { FeatureCard } from '@/components/dashboard/FeatureCard';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
@@ -50,7 +50,7 @@ export default function DashboardPage() {
     <div className="flex flex-col w-full p-4 md:p-8 gap-8">
       <WelcomeHeader />
 
-      <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+      <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
         <FeatureCard
           title="My Tutor"
           description="Your personal AI-powered tutor. Ask any question and get instant explanations."
@@ -62,6 +62,12 @@ export default function DashboardPage() {
           description="Submit your essays for instant, AI-powered feedback."
           href="/essay-feedback"
           icon={<BookOpenCheck className="h-8 w-8 text-primary" />}
+        />
+         <FeatureCard
+          title="History"
+          description="Review past courses, conversations, and submissions."
+          href="/history"
+          icon={<History className="h-8 w-8 text-primary" />}
         />
       </div>
 

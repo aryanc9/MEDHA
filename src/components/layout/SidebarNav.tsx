@@ -11,7 +11,8 @@ import {
     Library, 
     Contact,
     PenSquare,
-    Shield
+    Shield,
+    History
 } from "lucide-react"
 import { useAuth } from "@/hooks/use-auth"
 import {
@@ -32,7 +33,7 @@ export function SidebarNav() {
   const { isCollapsed } = useSidebar()
 
   const isActive = (path: string) => {
-    return pathname === path
+    return pathname.startsWith(path)
   }
 
   const logo = (
@@ -58,11 +59,11 @@ export function SidebarNav() {
             <SidebarMenuButton
               asChild
               isActive={isActive("/dashboard")}
-              tooltip={{ children: "Current Course" }}
+              tooltip={{ children: "Dashboard" }}
             >
               <Link href="/dashboard">
-                <FileText />
-                <span>Current Course</span>
+                <LayoutDashboard />
+                <span>Dashboard</span>
               </Link>
             </SidebarMenuButton>
           </SidebarMenuItem>
@@ -70,47 +71,47 @@ export function SidebarNav() {
             <SidebarMenuButton
               asChild
               isActive={isActive("/my-tutor")}
-              tooltip={{ children: "Create New Course" }}
+              tooltip={{ children: "My Tutor" }}
             >
               <Link href="/my-tutor">
                 <PenSquare />
-                <span>Create New Course</span>
+                <span>My Tutor</span>
               </Link>
             </SidebarMenuButton>
           </SidebarMenuItem>
            <SidebarMenuItem>
             <SidebarMenuButton
               asChild
-              isActive={isActive("/flashcards")}
-              tooltip={{ children: "Flashcards" }}
+              isActive={isActive("/essay-feedback")}
+              tooltip={{ children: "Essay Feedback" }}
             >
-              <Link href="#">
-                <Book />
-                <span>Flashcards</span>
+              <Link href="/essay-feedback">
+                <FileText />
+                <span>Essay Feedback</span>
               </Link>
             </SidebarMenuButton>
           </SidebarMenuItem>
            <SidebarMenuItem>
             <SidebarMenuButton
               asChild
-              isActive={isActive("/library")}
-              tooltip={{ children: "Library" }}
+              isActive={isActive("/history")}
+              tooltip={{ children: "History" }}
             >
-              <Link href="#">
-                <Library />
-                <span>Library</span>
+              <Link href="/history">
+                <History />
+                <span>History</span>
               </Link>
             </SidebarMenuButton>
           </SidebarMenuItem>
            <SidebarMenuItem>
             <SidebarMenuButton
               asChild
-              isActive={isActive("/profile")}
-              tooltip={{ children: "Profile" }}
+              isActive={isActive("/settings")}
+              tooltip={{ children: "Settings" }}
             >
               <Link href="/settings">
                 <Contact />
-                <span>Profile</span>
+                <span>Settings</span>
               </Link>
             </SidebarMenuButton>
           </SidebarMenuItem>
