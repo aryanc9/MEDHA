@@ -344,7 +344,7 @@ export default function MyTutorPage() {
                     <CardContent>
                         <Textarea 
                             value={courseStructure}
-                            onChange={(e) => setCourseStructure(e.g.,value)}
+                            onChange={(e) => setCourseStructure(e.target.value)}
                             placeholder="e.g.,&#10;Module 1: Introduction&#10; - Lesson 1.1: What is it?&#10; - Lesson 1.2: Key concepts&#10;Module 2: Advanced Topics..."
                             rows={8}
                         />
