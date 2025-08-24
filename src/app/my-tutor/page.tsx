@@ -34,8 +34,9 @@ import {
     User as UserIcon,
     Bot
 } from 'lucide-react';
-import { myTutor, MyTutorOutput } from '@/ai/flows/my-tutor';
-import { talkBuddy, TalkBuddyOutput } from '@/ai/flows/talk-buddy';
+import { myTutor, type MyTutorOutput } from '@/ai/flows/my-tutor';
+import { talkBuddy } from '@/ai/flows/talk-buddy';
+import type { TalkBuddyOutput } from '@/ai/schemas/talk-buddy-schemas';
 import { useToast } from '@/hooks/use-toast';
 import Image from 'next/image';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
@@ -270,7 +271,7 @@ const TalkBuddyDisplay = () => {
         setIsLoading(true);
 
         try {
-            const response = await talkBuddy({ prompt: currentMessage, language });
+            const response: TalkBuddyOutput = await talkBuddy({ prompt: currentMessage, language });
             setMessages(prev => [...prev, { sender: 'bot', text: response.responseText, audioUrl: response.audioUrl }]);
             if (response.audioUrl && audioRef.current) {
                 audioRef.current.src = response.audioUrl;
