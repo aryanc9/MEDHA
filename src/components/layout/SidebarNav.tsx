@@ -12,7 +12,8 @@ import {
     Contact,
     PenSquare,
     Shield,
-    History
+    History,
+    Settings
 } from "lucide-react"
 import { useAuth } from "@/hooks/use-auth"
 import {
@@ -110,7 +111,7 @@ export function SidebarNav() {
               tooltip={{ children: "Settings" }}
             >
               <Link href="/settings">
-                <Contact />
+                <Settings />
                 <span>Settings</span>
               </Link>
             </SidebarMenuButton>
