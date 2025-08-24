@@ -1,14 +1,14 @@
 
 'use client';
 
-import React, { useState, useCallback } from 'react';
+import React, { useState } from 'react';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from '@/components/ui/card';
 import { Input } from '@/components/ui/input';
 import { Switch } from '@/components/ui/switch';
 import { Label } from '@/components/ui/label';
 import { Textarea } from '@/components/ui/textarea';
-import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
+import { Accordion, AccordionContent, AccordionItem, AccordionTrigger } from '@/components/ui/accordion';
 import { 
     BookCopy, 
     Upload, 
@@ -21,13 +21,116 @@ import {
     Sparkles,
     BrainCircuit,
     ClipboardList,
-    BookOpen,
-    GalleryHorizontal,
-    GraduationCap
+    ChevronLeft,
+    ChevronRight,
 } from 'lucide-react';
 import { myTutor, MyTutorOutput } from '@/ai/flows/my-tutor';
 import { useToast } from '@/hooks/use-toast';
 import Image from 'next/image';
+
+const ResourceIcon = ({ type }: { type: string }) => {
+    switch (type) {
+        case 'video':
+            return <Youtube className="h-5 w-5 text-red-500" />;
+        case 'article':
+            return <Newspaper className="h-5 w-5 text-blue-500" />;
+        default:
+            return <Info className="h-5 w-5 text-gray-500" />;
+    }
+};
+
+const CourseDisplay = ({ result, topic }: { result: MyTutorOutput; topic: string }) => {
+    const [activeLesson, setActiveLesson] = useState({ moduleIndex: 0, lessonIndex: 0 });
+
+    if (!result.course) {
+        return <p className="text-muted-foreground text-center py-8">No course content was generated.</p>;
+    }
+    
+    const { title, overview, modules } = result.course;
+
+    return (
+        <Card className="mt-10">
+            <CardHeader>
+                <CardTitle className="text-3xl font-headline">{title}</CardTitle>
+                <CardDescription className="pt-2">{overview}</CardDescription>
+                {result.audioUrl && (
+                    <div className="pt-4">
+                        <audio controls src={result.audioUrl} className="w-full">
+                            Your browser does not support the audio element.
+                        </audio>
+                    </div>
+                )}
+            </CardHeader>
+            <CardContent className="space-y-8">
+                 <div className="prose prose-lg dark:prose-invert max-w-none rounded-lg border bg-muted/20 p-6 whitespace-pre-wrap font-sans">
+                     <Accordion type="multiple" defaultValue={['module-0']} className="w-full">
+                        {modules.map((module, moduleIndex) => (
+                            <AccordionItem value={`module-${moduleIndex}`} key={moduleIndex}>
+                                <AccordionTrigger className="text-xl font-bold">
+                                    Module {moduleIndex + 1}: {module.title}
+                                </AccordionTrigger>
+                                <AccordionContent className="pl-4">
+                                     <Accordion type="single" collapsible className="w-full">
+                                        {module.lessons.map((lesson, lessonIndex) => (
+                                            <AccordionItem value={`lesson-${moduleIndex}-${lessonIndex}`} key={lessonIndex}>
+                                                <AccordionTrigger>
+                                                    Lesson {lessonIndex + 1}: {lesson.title}
+                                                </AccordionTrigger>
+                                                <AccordionContent className="prose dark:prose-invert max-w-none">
+                                                    <div dangerouslySetInnerHTML={{ __html: lesson.content.replace(/\n/g, '<br />') }} />
+                                                </AccordionContent>
+                                            </AccordionItem>
+                                        ))}
+                                    </Accordion>
+                                </AccordionContent>
+                            </AccordionItem>
+                        ))}
+                    </Accordion>
+                 </div>
+
+                 {result.relatedResources && result.relatedResources.length > 0 && (
+                     <div>
+                        <h3 className="text-2xl font-bold mb-4 font-headline">Further Learning</h3>
+                        <div className="grid sm:grid-cols-2 lg:grid-cols-3 gap-4">
+                            {result.relatedResources.map((resource, index) => (
+                                <a 
+                                    key={index} 
+                                    href={resource.url} 
+                                    target="_blank" 
+                                    rel="noopener noreferrer"
+                                    className="block p-4 border rounded-md hover:bg-muted/50 transition-colors group"
+                                >
+                                    <div className="flex items-start gap-3">
+                                        <ResourceIcon type={resource.type} />
+                                        <div className="flex-1">
+                                            <p className="font-semibold text-primary group-hover:underline">{resource.title}</p>
+                                            <p className="text-xs text-muted-foreground break-all">{resource.url}</p>
+                                        </div>
+                                    </div>
+                                </a>
+                            ))}
+                        </div>
+                    </div>
+                )}
+                
+                {result.imageUrl && (
+                    <div>
+                        <h3 className="text-2xl font-bold mb-4 font-headline">Visual Aid</h3>
+                        <div className="relative aspect-video w-full overflow-hidden rounded-lg border">
+                                <Image src={result.imageUrl} alt="Generated image for the course" layout="fill" objectFit="cover" />
+                        </div>
+                    </div>
+                )}
+
+                <div className="flex justify-between items-center pt-6 border-t">
+                    <Button variant="outline"><ChevronLeft/> Previous Lesson</Button>
+                    <Button>Mark as Complete</Button>
+                    <Button variant="outline">Next Lesson <ChevronRight/></Button>
+                </div>
+            </CardContent>
+        </Card>
+    )
+}
 
 export default function MyTutorPage() {
   const [topic, setTopic] = useState('');
@@ -77,20 +180,9 @@ export default function MyTutorPage() {
       setResult(response);
     } catch (error) {
       console.error('Failed to create course:', error);
-      toast({ title: "Error", description: "Failed to create the course. Please check the console for details.", variant: "destructive" });
+      toast({ title: "Error", description: "Failed to create the course. Please try again.", variant: "destructive" });
     } finally {
       setLoading(false);
-    }
-  };
-
-  const ResourceIcon = ({ type }: { type: string }) => {
-    switch (type) {
-        case 'video':
-            return <Youtube className="h-5 w-5 text-red-500" />;
-        case 'article':
-            return <Newspaper className="h-5 w-5 text-blue-500" />;
-        default:
-            return <Info className="h-5 w-5 text-gray-500" />;
     }
   };
   
@@ -228,68 +320,7 @@ export default function MyTutorPage() {
             </Card>
         )}
 
-        {result && (
-             <Card className="mt-10">
-                <CardHeader>
-                    <CardTitle className="text-3xl font-headline">Your Course on "{topic}"</CardTitle>
-                    <CardDescription className="pt-2">{result.explanation}</CardDescription>
-                </CardHeader>
-                <CardContent className="space-y-8">
-                    {result.audioUrl && (
-                        <div className="pt-2">
-                            <audio controls src={result.audioUrl} className="w-full">
-                                Your browser does not support the audio element.
-                            </audio>
-                        </div>
-                    )}
-                    
-                    <Tabs defaultValue="content" className="w-full">
-                        <TabsList className="grid w-full grid-cols-3">
-                            <TabsTrigger value="content"><BookOpen className="mr-2"/>Course Content</TabsTrigger>
-                            <TabsTrigger value="visual" disabled={!result.imageUrl}><GalleryHorizontal className="mr-2"/>Visual Aid</TabsTrigger>
-                            <TabsTrigger value="resources" disabled={!result.relatedResources || result.relatedResources.length === 0}><GraduationCap className="mr-2"/>Further Learning</TabsTrigger>
-                        </TabsList>
-                        <TabsContent value="content" className="mt-4">
-                             {result.courseContent ? (
-                                 <div className="prose prose-lg dark:prose-invert max-w-none rounded-lg border bg-muted/20 p-6 whitespace-pre-wrap font-sans">
-                                    {result.courseContent}
-                                 </div>
-                             ) : <p className="text-muted-foreground text-center py-8">No course content was generated.</p>}
-                        </TabsContent>
-                        <TabsContent value="visual" className="mt-4">
-                            {result.imageUrl && (
-                                <div className="relative aspect-video w-full overflow-hidden rounded-lg border">
-                                     <Image src={result.imageUrl} alt="Generated image for the course" layout="fill" objectFit="cover" />
-                                </div>
-                            )}
-                        </TabsContent>
-                        <TabsContent value="resources" className="mt-4">
-                             {result.relatedResources && result.relatedResources.length > 0 && (
-                                <div className="grid sm:grid-cols-2 lg:grid-cols-3 gap-4">
-                                    {result.relatedResources.map((resource, index) => (
-                                        <a 
-                                            key={index} 
-                                            href={resource.url} 
-                                            target="_blank" 
-                                            rel="noopener noreferrer"
-                                            className="block p-4 border rounded-md hover:bg-muted/50 transition-colors group"
-                                        >
-                                            <div className="flex items-start gap-3">
-                                                <ResourceIcon type={resource.type} />
-                                                <div className="flex-1">
-                                                    <p className="font-semibold text-primary group-hover:underline">{resource.title}</p>
-                                                    <p className="text-xs text-muted-foreground break-all">{resource.url}</p>
-                                                </div>
-                                            </div>
-                                        </a>
-                                    ))}
-                                </div>
-                            )}
-                        </TabsContent>
-                    </Tabs>
-                </CardContent>
-            </Card>
-        )}
+        {result && <CourseDisplay result={result} topic={topic} />}
       </form>
     </div>
   );

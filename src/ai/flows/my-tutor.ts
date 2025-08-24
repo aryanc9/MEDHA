@@ -26,11 +26,25 @@ const MyTutorInputSchema = z.object({
 });
 export type MyTutorInput = z.infer<typeof MyTutorInputSchema>;
 
+const CourseLessonSchema = z.object({
+  title: z.string().describe("The title of the lesson."),
+  content: z.string().describe("The detailed content of the lesson, formatted in Markdown."),
+});
+
+const CourseModuleSchema = z.object({
+  title: z.string().describe("The title of the module."),
+  lessons: z.array(CourseLessonSchema).describe("A list of lessons within the module."),
+});
+
 const MyTutorOutputSchema = z.object({
   explanation: z.string().describe('The primary textual explanation or answer.'),
   imageUrl: z.string().optional().describe('URL of a generated image to supplement the explanation, if applicable.'),
   audioUrl: z.string().optional().describe('URL of a generated audio of the text response.'),
-  courseContent: z.string().optional().describe("The generated course content based on the user's request."),
+  course: z.object({
+    title: z.string().describe("The overall title of the generated course."),
+    overview: z.string().describe("A brief overview of the entire course."),
+    modules: z.array(CourseModuleSchema).describe("An array of course modules."),
+  }).optional().describe("The generated course content, structured into modules and lessons."),
   relatedResources: z.array(z.object({
     title: z.string(),
     url: z.string(),
@@ -46,17 +60,8 @@ export async function myTutor(input: MyTutorInput): Promise<MyTutorOutput> {
 const tutorPrompt = ai.definePrompt({
     name: 'tutorPrompt',
     input: { schema: MyTutorInputSchema },
-    output: { schema: z.object({
-        explanation: z.string().describe('A brief, one-paragraph explanation of the topic to the user.'),
-        imagePrompt: z.string().optional().describe('A prompt for DALL-E to generate a helpful image, if one would be useful.'),
-        courseContent: z.string().optional().describe("The generated course content based on the user's request. This should be a comprehensive course outline and content based on the prompt and any provided structure or source files. It should be well-formatted using Markdown."),
-        relatedResources: z.array(z.object({
-            title: z.string().describe("The title of the resource."),
-            url: z.string().url().describe("The URL of the resource."),
-            type: z.enum(['video', 'article', 'other']).describe("The type of the resource."),
-        })).optional().describe("A list of 2-3 relevant external resources like YouTube videos or articles."),
-    })},
-    prompt: `You are an expert AI course creator and tutor. Your goal is to generate a comprehensive course or provide a detailed explanation based on the user's request. Also find relevant external resources to supplement your answer.
+    output: { schema: MyTutorOutputSchema.omit({ imageUrl: true, audioUrl: true }) },
+    prompt: `You are an expert AI course creator and tutor. Your goal is to generate a comprehensive, well-structured course based on the user's request. The course should be broken down into a logical hierarchy of modules and lessons. Also find relevant external resources to supplement your answer.
 
     User Topic: {{{prompt}}}
 
@@ -81,11 +86,23 @@ const tutorPrompt = ai.definePrompt({
     User Image for context: {{media url=image}}
     {{/if}}
 
-    Based on all the provided information, generate the course content or a detailed explanation. Start with a brief, one-paragraph explanation of the topic. Then, if the request is to build a course, provide the detailed course content.
+    Based on all the provided information, generate the course. Start with a brief, one-paragraph explanation of the topic. Then, generate the structured course content.
+    - The course must have a main title and a brief overview.
+    - The course must be divided into multiple modules.
+    - Each module must contain multiple lessons.
+    - Each lesson must have a title and detailed content formatted in Markdown.
     
     In addition to the main response, find 2-3 highly relevant external resources (like YouTube videos or in-depth articles) that would help the user understand the topic better. Provide the title, URL, and type for each resource.
     `
 });
+
+const imageGenerationPrompt = ai.definePrompt({
+    name: 'imageGenerationPrompt',
+    input: { schema: z.object({ topic: z.string() }) },
+    output: { schema: z.object({ imagePrompt: z.string().describe('A prompt for DALL-E to generate a helpful image, if one would be useful.') }) },
+    prompt: `Generate a suitable image prompt for a course on the topic: {{{topic}}}. The prompt should be creative and result in an image that is visually appealing and relevant to the subject.`
+});
+
 
 const myTutorFlow = ai.defineFlow(
   {
@@ -99,59 +116,61 @@ const myTutorFlow = ai.defineFlow(
       throw new Error('Failed to get a response from the tutor prompt.');
     }
 
-    const { explanation, imagePrompt, courseContent, relatedResources } = output;
+    const { explanation, course, relatedResources } = output;
 
-    const [imageUrl, audioUrl] = await Promise.all([
-      imagePrompt ? (async () => {
-        try {
+    // Generate image and audio in parallel
+    const [imageUrlResult, audioUrlResult] = await Promise.allSettled([
+        (async () => {
+            const { output: imagePromptOutput } = await imageGenerationPrompt({ topic: input.prompt });
+            if (!imagePromptOutput?.imagePrompt) return undefined;
             const { media } = await ai.generate({
               model: 'googleai/gemini-2.0-flash-preview-image-generation',
-              prompt: imagePrompt,
+              prompt: imagePromptOutput.imagePrompt,
               config: {
                 responseModalities: ['TEXT', 'IMAGE'],
               },
             });
             return media?.url;
-        } catch (e) {
-            console.error("Image generation failed:", e);
-            return undefined;
-        }
-      })() : Promise.resolve(undefined),
-
-      explanation ? (async () => {
-        try {
+        })(),
+        (async () => {
+            if (!explanation) return undefined;
             const { media } = await ai.generate({
-            model: 'googleai/gemini-2.5-flash-preview-tts',
-            config: {
-                responseModalities: ['AUDIO'],
-                speechConfig: {
-                voiceConfig: {
-                    prebuiltVoiceConfig: { voiceName: 'Algenib' },
-                },
-                },
-            },
-            prompt: explanation,
+              model: 'googleai/gemini-2.5-flash-preview-tts',
+              config: {
+                  responseModalities: ['AUDIO'],
+                  speechConfig: {
+                    voiceConfig: {
+                        prebuiltVoiceConfig: { voiceName: 'Algenib' },
+                    },
+                  },
+              },
+              prompt: explanation,
             });
             if (!media) return undefined;
             const audioBuffer = Buffer.from(
-            media.url.substring(media.url.indexOf(',') + 1),
-            'base64'
+              media.url.substring(media.url.indexOf(',') + 1),
+              'base64'
             );
             const wavBase64 = await toWav(audioBuffer);
             return `data:audio/wav;base64,${wavBase64}`;
-        } catch (e) {
-            console.error("TTS generation failed:", e);
-            // Don't block the response if TTS fails, just return undefined for audioUrl
-            return undefined; 
-        }
-      })() : Promise.resolve(undefined),
+        })()
     ]);
+
+    const imageUrl = imageUrlResult.status === 'fulfilled' ? imageUrlResult.value : undefined;
+    const audioUrl = audioUrlResult.status === 'fulfilled' ? audioUrlResult.value : undefined;
     
+    if (imageUrlResult.status === 'rejected') {
+        console.error("Image generation failed:", imageUrlResult.reason);
+    }
+    if (audioUrlResult.status === 'rejected') {
+        console.error("TTS generation failed:", audioUrlResult.reason);
+    }
+
     return {
       explanation: explanation || "I'm sorry, I couldn't come up with an explanation for that.",
       imageUrl,
       audioUrl,
-      courseContent: courseContent || undefined,
+      course,
       relatedResources: relatedResources || [],
     };
   }
