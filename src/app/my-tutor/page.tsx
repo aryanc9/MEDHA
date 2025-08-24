@@ -1,7 +1,7 @@
 
 'use client';
 
-import React, { useState, useEffect, useRef } from 'react';
+import React, { useState, useEffect, useRef, useCallback } from 'react';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from '@/components/ui/card';
 import { Input } from '@/components/ui/input';
@@ -38,7 +38,7 @@ import {
 } from 'lucide-react';
 import { myTutor, type MyTutorOutput } from '@/ai/flows/my-tutor';
 import { talkBuddy, type TalkBuddyInput } from '@/ai/flows/talk-buddy';
-import type { TalkBuddyOutput } from '@/ai/schemas/talk-buddy-schemas';
+import type { TalkBuddyOutput, TalkBuddyMessage } from '@/ai/schemas/talk-buddy-schemas';
 import { useAuth } from '@/hooks/use-auth';
 import { useToast } from '@/hooks/use-toast';
 import Image from 'next/image';
@@ -58,6 +58,7 @@ declare global {
   }
 }
 
+// Reusable Icon component for different resource types
 const ResourceIcon = ({ type }: { type: string }) => {
     switch (type) {
         case 'video':
@@ -69,6 +70,7 @@ const ResourceIcon = ({ type }: { type: string }) => {
     }
 };
 
+// Component to render lesson content with basic markdown
 const LessonContentDisplay = ({ content }: { content: string }) => {
     return (
         <div className="prose prose-sm dark:prose-invert max-w-none space-y-4">
@@ -96,6 +98,7 @@ const LessonContentDisplay = ({ content }: { content: string }) => {
     )
 }
 
+// Component to display the generated course
 const CourseDisplay = ({ result }: { result: MyTutorOutput; }) => {
     const [selectedVideoId, setSelectedVideoId] = useState<string | null>(null);
 
@@ -224,14 +227,11 @@ const CourseDisplay = ({ result }: { result: MyTutorOutput; }) => {
     )
 }
 
+// Component for the course creation form
 const CourseCreationForm = ({
     onCourseCreate,
-    loading,
-    result,
 }:{
     onCourseCreate: (output: MyTutorOutput) => void;
-    loading: boolean;
-    result: MyTutorOutput | null;
 }) => {
     const [topic, setTopic] = useState('');
     const [isResearchMode, setIsResearchMode] = useState(false);
@@ -289,118 +289,119 @@ const CourseCreationForm = ({
     const suggestedTopics = ["Quantum Computing Basics", "The History of Ancient Rome", "Introduction to Javascript", "How to bake Sourdough Bread"];
 
     return (
-        <form onSubmit={handleCreateCourse} className="space-y-8 mt-6">
-            <Card>
-              <CardHeader>
-                <CardTitle className="flex items-center gap-2"><Sparkles className="text-primary"/> 1. Define Your Topic</CardTitle>
-                <CardDescription>What would you like to learn about today?</CardDescription>
-              </CardHeader>
-              <CardContent>
-                <div className="relative">
-                  <Input
-                    value={topic}
-                    onChange={(e) => setTopic(e.target.value)}
-                    placeholder="e.g., 'The fundamentals of machine learning'"
-                    className="h-12 text-lg"
-                  />
-                </div>
-                <div className="mt-4 flex flex-wrap gap-2">
-                    {suggestedTopics.map(t => (
-                        <Button key={t} type="button" variant="outline" size="sm" onClick={() => setTopic(t)}>{t}</Button>
-                    ))}
-                </div>
-              </CardContent>
-            </Card>
-            
-            <Card>
-                <CardHeader>
-                    <CardTitle className="flex items-center gap-2"><BrainCircuit className="text-primary"/> 2. Customize Your Learning</CardTitle>
-                    <CardDescription>Refine how the AI generates your course content.</CardDescription>
-                </CardHeader>
-                <CardContent className="grid md:grid-cols-2 lg:grid-cols-3 gap-6">
-                    <div className="flex items-start space-x-4 rounded-lg border p-4">
-                        <Search className="h-6 w-6 mt-1 text-primary"/>
-                        <div className="space-y-1 flex-1">
-                            <Label htmlFor="research-mode" className="font-semibold">Research Mode</Label>
-                            <p className="text-xs text-muted-foreground">Perform a deeper, more thorough search for content.</p>
-                        </div>
-                        <Switch id="research-mode" checked={isResearchMode} onCheckedChange={setIsResearchMode} />
+        <>
+            <form onSubmit={handleCreateCourse} className="space-y-8 mt-6">
+                <Card>
+                  <CardHeader>
+                    <CardTitle className="flex items-center gap-2"><Sparkles className="text-primary"/> 1. Define Your Topic</CardTitle>
+                    <CardDescription>What would you like to learn about today?</CardDescription>
+                  </CardHeader>
+                  <CardContent>
+                    <div className="relative">
+                      <Input
+                        value={topic}
+                        onChange={(e) => setTopic(e.target.value)}
+                        placeholder="e.g., 'The fundamentals of machine learning'"
+                        className="h-12 text-lg"
+                      />
                     </div>
-                    <div className="flex items-start space-x-4 rounded-lg border p-4">
-                        <Upload className="h-6 w-6 mt-1 text-primary"/>
-                        <div className="space-y-1 flex-1">
-                            <Label htmlFor="own-sources" className="font-semibold">Use Own Sources</Label>
-                            <p className="text-xs text-muted-foreground">Upload a document to use as the primary source.</p>
-                        </div>
-                         <Switch id="own-sources" checked={useOwnSources} onCheckedChange={setUseOwnSources} />
+                    <div className="mt-4 flex flex-wrap gap-2">
+                        {suggestedTopics.map(t => (
+                            <Button key={t} type="button" variant="outline" size="sm" onClick={() => setTopic(t)}>{t}</Button>
+                        ))}
                     </div>
-                     <div className="flex items-start space-x-4 rounded-lg border p-4">
-                        <ClipboardList className="h-6 w-6 mt-1 text-primary"/>
-                        <div className="space-y-1 flex-1">
-                            <Label htmlFor="define-structure" className="font-semibold">Define Structure</Label>
-                            <p className="text-xs text-muted-foreground">Provide a custom plan or outline for the course.</p>
-                        </div>
-                         <Switch id="define-structure" checked={defineStructure} onCheckedChange={setDefineStructure} />
-                    </div>
-                </CardContent>
-            </Card>
-
-            <div className="grid md:grid-cols-2 gap-8">
-                {useOwnSources && (
-                    <Card>
-                        <CardHeader>
-                            <CardTitle>Upload Your Source</CardTitle>
-                            <CardDescription>Upload a text file (.txt, .md) to use as the knowledge base.</CardDescription>
-                        </CardHeader>
-                        <CardContent>
-                            <div className="border-2 border-dashed border-muted-foreground/30 rounded-xl p-6 flex flex-col items-center justify-center text-center">
-                                <FileUp className="h-10 w-10 text-muted-foreground mb-3" />
-                                <p className="font-semibold mb-2">{fileName || 'Drop your file here'}</p>
-                                <Button asChild variant="outline" size="sm">
-                                    <label>
-                                        Select File
-                                        <Input type="file" accept=".txt,.md" className="hidden" onChange={handleFileChange} />
-                                    </label>
-                                </Button>
+                  </CardContent>
+                </Card>
+                
+                <Card>
+                    <CardHeader>
+                        <CardTitle className="flex items-center gap-2"><BrainCircuit className="text-primary"/> 2. Customize Your Learning</CardTitle>
+                        <CardDescription>Refine how the AI generates your course content.</CardDescription>
+                    </CardHeader>
+                    <CardContent className="grid md:grid-cols-2 lg:grid-cols-3 gap-6">
+                        <div className="flex items-start space-x-4 rounded-lg border p-4">
+                            <Search className="h-6 w-6 mt-1 text-primary"/>
+                            <div className="space-y-1 flex-1">
+                                <Label htmlFor="research-mode" className="font-semibold">Research Mode</Label>
+                                <p className="text-xs text-muted-foreground">Perform a deeper, more thorough search for content.</p>
                             </div>
-                        </CardContent>
-                    </Card>
-                )}
+                            <Switch id="research-mode" checked={isResearchMode} onCheckedChange={setIsResearchMode} />
+                        </div>
+                        <div className="flex items-start space-x-4 rounded-lg border p-4">
+                            <Upload className="h-6 w-6 mt-1 text-primary"/>
+                            <div className="space-y-1 flex-1">
+                                <Label htmlFor="own-sources" className="font-semibold">Use Own Sources</Label>
+                                <p className="text-xs text-muted-foreground">Upload a document to use as the primary source.</p>
+                            </div>
+                             <Switch id="own-sources" checked={useOwnSources} onCheckedChange={setUseOwnSources} />
+                        </div>
+                         <div className="flex items-start space-x-4 rounded-lg border p-4">
+                            <ClipboardList className="h-6 w-6 mt-1 text-primary"/>
+                            <div className="space-y-1 flex-1">
+                                <Label htmlFor="define-structure" className="font-semibold">Define Structure</Label>
+                                <p className="text-xs text-muted-foreground">Provide a custom plan or outline for the course.</p>
+                            </div>
+                             <Switch id="define-structure" checked={defineStructure} onCheckedChange={setDefineStructure} />
+                        </div>
+                    </CardContent>
+                </Card>
 
-                {defineStructure && (
-                     <Card className={!useOwnSources ? "md:col-span-2" : ""}>
-                        <CardHeader>
-                            <CardTitle>Define Course Structure</CardTitle>
-                            <CardDescription>Provide an outline or plan for the AI to follow.</CardDescription>
-                        </CardHeader>
-                        <CardContent>
-                            <Textarea 
-                                value={courseStructure}
-                                onChange={(e) => setCourseStructure(e.target.value)}
-                                placeholder="e.g.,&#10;Module 1: Introduction&#10; - Lesson 1.1: What is it?&#10; - Lesson 1.2: Key concepts&#10;Module 2: Advanced Topics..."
-                                rows={8}
-                            />
-                        </CardContent>
-                    </Card>
-                )}
-            </div>
+                <div className="grid md:grid-cols-2 gap-8">
+                    {useOwnSources && (
+                        <Card>
+                            <CardHeader>
+                                <CardTitle>Upload Your Source</CardTitle>
+                                <CardDescription>Upload a text file (.txt, .md) to use as the knowledge base.</CardDescription>
+                            </CardHeader>
+                            <CardContent>
+                                <div className="border-2 border-dashed border-muted-foreground/30 rounded-xl p-6 flex flex-col items-center justify-center text-center">
+                                    <FileUp className="h-10 w-10 text-muted-foreground mb-3" />
+                                    <p className="font-semibold mb-2">{fileName || 'Drop your file here'}</p>
+                                    <Button asChild variant="outline" size="sm">
+                                        <label>
+                                            Select File
+                                            <Input type="file" accept=".txt,.md" className="hidden" onChange={handleFileChange} />
+                                        </label>
+                                    </Button>
+                                </div>
+                            </CardContent>
+                        </Card>
+                    )}
 
-            <div className="text-center">
-              <Button type="submit" size="lg" disabled={isGenerating || !topic}>
-                {isGenerating ? (
-                  <>
-                    <Loader2 className="mr-2 h-5 w-5 animate-spin" />
-                    Generating Your Course...
-                  </>
-                ) : (
-                  <>
-                    <BookCopy className="mr-2 h-5 w-5" />
-                    Create My Course
-                  </>
-                )}
-              </Button>
-            </div>
+                    {defineStructure && (
+                         <Card className={!useOwnSources ? "md:col-span-2" : ""}>
+                            <CardHeader>
+                                <CardTitle>Define Course Structure</CardTitle>
+                                <CardDescription>Provide an outline or plan for the AI to follow.</CardDescription>
+                            </CardHeader>
+                            <CardContent>
+                                <Textarea 
+                                    value={courseStructure}
+                                    onChange={(e) => setCourseStructure(e.target.value)}
+                                    placeholder="e.g.,&#10;Module 1: Introduction&#10; - Lesson 1.1: What is it?&#10; - Lesson 1.2: Key concepts&#10;Module 2: Advanced Topics..."
+                                    rows={8}
+                                />
+                            </CardContent>
+                        </Card>
+                    )}
+                </div>
 
+                <div className="text-center">
+                  <Button type="submit" size="lg" disabled={isGenerating || !topic}>
+                    {isGenerating ? (
+                      <>
+                        <Loader2 className="mr-2 h-5 w-5 animate-spin" />
+                        Generating Your Course...
+                      </>
+                    ) : (
+                      <>
+                        <BookCopy className="mr-2 h-5 w-5" />
+                        Create My Course
+                      </>
+                    )}
+                  </Button>
+                </div>
+            </form>
             {isGenerating && (
                  <Card className="mt-6">
                     <CardContent className="p-10 flex flex-col items-center justify-center text-center">
@@ -410,16 +411,14 @@ const CourseCreationForm = ({
                     </CardContent>
                 </Card>
             )}
-
-            {result && <CourseDisplay result={result} />}
-        </form>
+        </>
     );
 };
 
-
+// Component for the Talk Buddy chat interface
 const TalkBuddyDisplay = () => {
     const [language, setLanguage] = useState('English');
-    const [messages, setMessages] = useState<{ sender: 'user' | 'bot'; text: string; audioUrl?: string }[]>([]);
+    const [messages, setMessages] = useState<TalkBuddyMessage[]>([]);
     const [userInput, setUserInput] = useState('');
     const [isLoading, setIsLoading] = useState(false);
     const [isListening, setIsListening] = useState(false);
@@ -430,18 +429,20 @@ const TalkBuddyDisplay = () => {
     const scrollAreaRef = useRef<HTMLDivElement>(null);
     const { toast } = useToast();
 
+    // Initialize Speech Recognition
     useEffect(() => {
         const SpeechRecognition = window.SpeechRecognition || window.webkitSpeechRecognition;
         if (SpeechRecognition) {
             recognitionRef.current = new SpeechRecognition();
             recognitionRef.current.continuous = false;
             recognitionRef.current.interimResults = false;
-            recognitionRef.current.lang = 'en-US';
+            recognitionRef.current.lang = 'en-US'; // This can be updated based on language selection
 
             recognitionRef.current.onresult = (event: any) => {
                 const transcript = event.results[0][0].transcript;
                 setUserInput(transcript);
                 handleSendMessage(transcript); 
+                setIsListening(false);
             };
             recognitionRef.current.onerror = (event: any) => {
                 toast({ title: "Speech Recognition Error", description: event.error, variant: "destructive" });
@@ -450,20 +451,23 @@ const TalkBuddyDisplay = () => {
             recognitionRef.current.onend = () => {
                 setIsListening(false);
             };
+        } else {
+            toast({ title: "Browser Not Supported", description: "Speech recognition is not supported in your browser.", variant: "destructive" });
         }
     }, [toast]);
     
+    // Auto-scroll to the latest message
      useEffect(() => {
         if (scrollAreaRef.current) {
-            scrollAreaRef.current.scrollTop = scrollAreaRef.current.scrollHeight;
+            scrollAreaRef.current.querySelector('[data-radix-scroll-area-viewport]')!.scrollTop = scrollAreaRef.current.scrollHeight;
         }
     }, [messages]);
 
-    const handleSendMessage = async (text: string) => {
+    const handleSendMessage = useCallback(async (text: string) => {
         const currentMessage = text.trim();
         if (!currentMessage || !user) return;
         
-        const userMessage = { sender: 'user' as const, text: currentMessage };
+        const userMessage: TalkBuddyMessage = { sender: 'user', text: currentMessage };
         const newMessages = [...messages, userMessage];
         setMessages(newMessages);
         setUserInput('');
@@ -475,10 +479,13 @@ const TalkBuddyDisplay = () => {
                 language,
                 userId: user.uid,
                 conversationId,
-                messages: newMessages,
+                messages, // Pass current message history for context
              });
-            setMessages(prev => [...prev, { sender: 'bot', text: response.responseText, audioUrl: response.audioUrl }]);
-            if (response.conversationId) {
+
+            const botMessage: TalkBuddyMessage = { sender: 'bot', text: response.responseText, audioUrl: response.audioUrl };
+            setMessages(prev => [...prev, botMessage]);
+
+            if (response.conversationId && !conversationId) {
                 setConversationId(response.conversationId);
             }
             if (response.audioUrl && audioRef.current) {
@@ -488,16 +495,21 @@ const TalkBuddyDisplay = () => {
         } catch (error) {
             console.error("Talk Buddy failed:", error);
             toast({ title: "Error", description: "Talk Buddy failed to respond.", variant: "destructive" });
-             setMessages(prev => prev.slice(0, -1));
+            setMessages(prev => prev.slice(0, -1)); // Remove the user's message if the API call fails
         } finally {
             setIsLoading(false);
         }
-    };
+    }, [user, messages, language, conversationId, toast]);
     
     const handleListen = () => {
-        if (isListening || !recognitionRef.current) return;
-        setIsListening(true);
-        recognitionRef.current.start();
+        if (!recognitionRef.current) return;
+        if (isListening) {
+            recognitionRef.current.stop();
+            setIsListening(false);
+        } else {
+            setIsListening(true);
+            recognitionRef.current.start();
+        }
     }
     
     return (
@@ -526,7 +538,7 @@ const TalkBuddyDisplay = () => {
                     <ScrollArea className="flex-1 p-4" ref={scrollAreaRef}>
                         <div className="space-y-4">
                             {messages.map((msg, index) => (
-                                <div key={index} className={`flex items-start gap-3 ${msg.sender === 'user' ? 'justify-end' : ''}`}>
+                                <div key={index} className={`flex items-end gap-3 ${msg.sender === 'user' ? 'justify-end' : ''}`}>
                                     {msg.sender === 'bot' && <div className="bg-primary text-primary-foreground rounded-full h-8 w-8 flex items-center justify-center flex-shrink-0"><Bot className="h-5 w-5"/></div>}
                                     <div className={`rounded-lg px-4 py-2 max-w-sm ${msg.sender === 'bot' ? 'bg-muted' : 'bg-primary text-primary-foreground'}`}>
                                         <p>{msg.text}</p>
@@ -535,7 +547,7 @@ const TalkBuddyDisplay = () => {
                                 </div>
                             ))}
                             {isLoading && (
-                                <div className="flex items-start gap-3">
+                                <div className="flex items-end gap-3">
                                     <div className="bg-primary text-primary-foreground rounded-full h-8 w-8 flex items-center justify-center flex-shrink-0"><Bot className="h-5 w-5"/></div>
                                     <div className="rounded-lg px-4 py-2 bg-muted flex items-center">
                                         <Loader2 className="h-5 w-5 animate-spin"/>
@@ -556,7 +568,7 @@ const TalkBuddyDisplay = () => {
                              <Button onClick={() => handleSendMessage(userInput)} disabled={isLoading || !userInput}>
                                 <Send className="h-5 w-5"/>
                              </Button>
-                             <Button variant="outline" onClick={handleListen} disabled={isListening || isLoading}>
+                             <Button variant="outline" onClick={handleListen} disabled={isLoading}>
                                 {isListening ? <Volume2 className="h-5 w-5 animate-pulse text-red-500"/> : <Mic className="h-5 w-5"/>}
                              </Button>
                         </div>
@@ -568,6 +580,7 @@ const TalkBuddyDisplay = () => {
     );
 }
 
+// Component to display user's history of courses and conversations
 const HistoryDisplay = () => {
     const { user } = useAuth();
     const [courses, setCourses] = useState<any[]>([]);
@@ -582,12 +595,12 @@ const HistoryDisplay = () => {
 
             const unsubCourses = onSnapshot(coursesQuery, (snapshot) => {
                 setCourses(snapshot.docs.map(doc => ({ id: doc.id, ...doc.data() })));
-                setLoading(false);
+                if(loading) setLoading(false);
             }, () => setLoading(false));
 
             const unsubConvos = onSnapshot(convosQuery, (snapshot) => {
                 setConversations(snapshot.docs.map(doc => ({ id: doc.id, ...doc.data() })));
-                setLoading(false);
+                 if(loading) setLoading(false);
             }, () => setLoading(false));
 
             return () => {
@@ -597,7 +610,7 @@ const HistoryDisplay = () => {
         } else {
             setLoading(false);
         }
-    }, [user]);
+    }, [user, loading]);
 
     if (loading) {
         return <div className="flex items-center justify-center h-64"><Loader2 className="h-8 w-8 animate-spin" /></div>
@@ -615,7 +628,7 @@ const HistoryDisplay = () => {
                         <ul className="space-y-2">
                             {courses.map(course => (
                                 <li key={course.id} className="p-3 border rounded-md hover:bg-muted/50">
-                                    <p className="font-semibold">{course.course.title}</p>
+                                    <p className="font-semibold">{course.course?.title || "Untitled Course"}</p>
                                     <p className="text-sm text-muted-foreground">Created on {course.createdAt ? format(new Date(course.createdAt.seconds * 1000), 'PPP') : 'N/A'}</p>
                                 </li>
                             ))}
@@ -635,7 +648,7 @@ const HistoryDisplay = () => {
                                 <li key={convo.id} className="p-3 border rounded-md hover:bg-muted/50">
                                     <p className="font-semibold">{convo.title}</p>
                                     <p className="text-sm text-muted-foreground">Last message on {convo.lastUpdatedAt ? format(new Date(convo.lastUpdatedAt.seconds * 1000), 'PPP p') : 'N/A'}</p>
-                                     <p className="text-sm text-muted-foreground mt-1 truncate">{convo.messages.slice(-1)[0]?.text}</p>
+                                    <p className="text-sm text-muted-foreground mt-1 truncate">{convo.messages?.slice(-1)[0]?.text}</p>
                                 </li>
                             ))}
                         </ul>
@@ -646,9 +659,9 @@ const HistoryDisplay = () => {
     )
 }
 
+// The main page component that ties everything together
 export default function MyTutorPage() {
     const [activeTab, setActiveTab] = useState('create');
-    const [loading, setLoading] = useState(false);
     const [result, setResult] = useState<MyTutorOutput | null>(null);
 
     const handleCourseCreated = (output: MyTutorOutput) => {
@@ -673,7 +686,7 @@ export default function MyTutorPage() {
                     </p>
                 </div>
                 
-                <SheetContent side="top" className="w-full h-3/4 md:h-2/3 md:w-3/4 mx-auto">
+                <SheetContent side="top" className="w-full h-3/4 md:h-2/3 md:w-3/4 mx-auto rounded-b-lg">
                     <SheetHeader>
                         <SheetTitle>Your Learning History</SheetTitle>
                         <SheetDescription>
@@ -692,11 +705,8 @@ export default function MyTutorPage() {
               <TabsTrigger value="buddy"><MessageSquare className="mr-2"/> Talk Buddy</TabsTrigger>
             </TabsList>
             <TabsContent value="create">
-                 <CourseCreationForm 
-                    onCourseCreate={handleCourseCreated} 
-                    loading={loading}
-                    result={result}
-                 />
+                 <CourseCreationForm onCourseCreate={handleCourseCreated} />
+                 {result && <CourseDisplay result={result} />}
             </TabsContent>
             <TabsContent value="buddy">
                 <TalkBuddyDisplay />
@@ -705,5 +715,3 @@ export default function MyTutorPage() {
         </div>
     );
 }
-
-    

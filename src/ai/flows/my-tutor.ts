@@ -188,11 +188,13 @@ const myTutorFlow = ai.defineFlow(
         const courseDocRef = doc(collection(db, 'users', input.userId, 'courses'));
         
         await setDoc(courseDocRef, {
-            ...input,
+            prompt: input.prompt,
+            researchMode: input.researchMode,
+            sourceFile: input.sourceFile || null,
+            courseStructure: input.courseStructure || null,
             explanation,
             course,
             relatedResources,
-            // Do not save the imageUrl to firestore
             audioUrl: audioUrl || null,
             createdAt: serverTimestamp(),
         });

@@ -18,7 +18,7 @@ import {
   TalkBuddyOutputSchema,
   type TalkBuddyOutput
 } from '@/ai/schemas/talk-buddy-schemas';
-import { getFirestore, doc, setDoc, serverTimestamp, collection, updateDoc } from 'firebase/firestore';
+import { getFirestore, doc, setDoc, serverTimestamp, collection, updateDoc, arrayUnion } from 'firebase/firestore';
 import { firebaseApp } from '@/lib/firebase';
 
 const db = getFirestore(firebaseApp);
@@ -30,13 +30,18 @@ export async function talkBuddy(input: TalkBuddyInput): Promise<TalkBuddyOutput>
 
 const buddyPrompt = ai.definePrompt({
   name: 'talkBuddyPrompt',
-  input: { schema: TalkBuddyInputSchema.pick({ prompt: true, language: true }) },
+  input: { schema: TalkBuddyInputSchema.pick({ prompt: true, language: true, messages: true }) },
   output: { schema: z.object({ responseText: z.string() }) },
   prompt: `You are "Talk Buddy," a friendly and knowledgeable AI language partner. Your goal is to have a natural conversation with the user, answer their questions on any topic, and help them practice speaking in their desired language.
 
   Current Conversation Language: {{{language}}}
 
-  User's message: "{{{prompt}}}"
+  Conversation History (for context):
+  {{#each messages}}
+    {{sender}}: {{text}}
+  {{/each}}
+  
+  User's latest message: "{{{prompt}}}"
 
   Your response should be in {{{language}}}. Be helpful, engaging, and encouraging. Keep your responses concise and conversational.`,
 });
@@ -85,37 +90,34 @@ const talkBuddyFlow = ai.defineFlow(
     }
 
     // 3. Save conversation to Firestore
-    if (input.userId && input.conversationId) {
-        const conversationDocRef = doc(db, 'users', input.userId, 'conversations', input.conversationId);
-        // Append new messages to the existing conversation
-        const updatedMessages = [
-            ...input.messages,
-            { sender: 'user', text: input.prompt },
-            { sender: 'bot', text: responseText, audioUrl }
-        ];
-        await updateDoc(conversationDocRef, { messages: updatedMessages, lastUpdatedAt: serverTimestamp() });
-    } else if (input.userId) {
-        // Create a new conversation document
-        const conversationDocRef = doc(collection(db, 'users', input.userId, 'conversations'));
-        const newConversation = {
-            id: conversationDocRef.id,
-            userId: input.userId,
-            language: input.language,
-            startedAt: serverTimestamp(),
-            lastUpdatedAt: serverTimestamp(),
-            title: `Conversation in ${input.language}`,
-            messages: [
-                { sender: 'user', text: input.prompt },
-                { sender: 'bot', text: responseText, audioUrl }
-            ]
-        };
-        await setDoc(conversationDocRef, newConversation);
-        input.conversationId = conversationDocRef.id;
+    let conversationId = input.conversationId;
+    if (input.userId) {
+        const userMessage = { sender: 'user' as const, text: input.prompt };
+        const botMessage = { sender: 'bot' as const, text: responseText, audioUrl: audioUrl || null };
+        
+        if (conversationId) {
+            const conversationDocRef = doc(db, 'users', input.userId, 'conversations', conversationId);
+            await updateDoc(conversationDocRef, { 
+                messages: arrayUnion(userMessage, botMessage), 
+                lastUpdatedAt: serverTimestamp() 
+            });
+        } else {
+            const conversationDocRef = doc(collection(db, 'users', input.userId, 'conversations'));
+            const newConversation = {
+                id: conversationDocRef.id,
+                userId: input.userId,
+                language: input.language,
+                startedAt: serverTimestamp(),
+                lastUpdatedAt: serverTimestamp(),
+                title: `Conversation in ${input.language} on ${new Date().toLocaleDateString()}`,
+                messages: [userMessage, botMessage]
+            };
+            await setDoc(conversationDocRef, newConversation);
+            conversationId = conversationDocRef.id;
+        }
     }
 
 
-    return { responseText, audioUrl, conversationId: input.conversationId };
+    return { responseText, audioUrl, conversationId };
   }
 );
-
-    
