@@ -23,10 +23,14 @@ import {
     ClipboardList,
     ChevronLeft,
     ChevronRight,
+    BookText,
+    Video,
+    Image as ImageIcon
 } from 'lucide-react';
 import { myTutor, MyTutorOutput } from '@/ai/flows/my-tutor';
 import { useToast } from '@/hooks/use-toast';
 import Image from 'next/image';
+import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 
 const ResourceIcon = ({ type }: { type: string }) => {
     switch (type) {
@@ -39,9 +43,34 @@ const ResourceIcon = ({ type }: { type: string }) => {
     }
 };
 
-const CourseDisplay = ({ result, topic }: { result: MyTutorOutput; topic: string }) => {
-    const [activeLesson, setActiveLesson] = useState({ moduleIndex: 0, lessonIndex: 0 });
+const LessonContentDisplay = ({ content }: { content: string }) => {
+    return (
+        <div className="prose prose-sm dark:prose-invert max-w-none space-y-4">
+            {content.split('\n').map((line, index) => {
+                if (line.startsWith('- ')) {
+                    return (
+                        <div key={index} className="flex items-start gap-3">
+                            <ChevronRight className="h-4 w-4 mt-1 text-primary flex-shrink-0" />
+                            <span>{line.substring(2)}</span>
+                        </div>
+                    );
+                }
+                if (line.startsWith('##')) {
+                    return <h2 key={index} className="text-xl font-bold mt-6 mb-2">{line.replace(/##/g, '').trim()}</h2>
+                }
+                 if (line.startsWith('#')) {
+                    return <h1 key={index} className="text-2xl font-bold mt-8 mb-4">{line.replace(/#/g, '').trim()}</h1>
+                }
+                if(line.trim() === '') {
+                    return <br key={index} />;
+                }
+                return <p key={index}>{line}</p>;
+            })}
+        </div>
+    )
+}
 
+const CourseDisplay = ({ result }: { result: MyTutorOutput; }) => {
     if (!result.course) {
         return <p className="text-muted-foreground text-center py-8">No course content was generated.</p>;
     }
@@ -53,46 +82,55 @@ const CourseDisplay = ({ result, topic }: { result: MyTutorOutput; topic: string
             <CardHeader>
                 <CardTitle className="text-3xl font-headline">{title}</CardTitle>
                 <CardDescription className="pt-2">{overview}</CardDescription>
-                {result.audioUrl && (
-                    <div className="pt-4">
-                        <audio controls src={result.audioUrl} className="w-full">
-                            Your browser does not support the audio element.
-                        </audio>
+                {result.explanation && (
+                    <div className="pt-4 space-y-2">
+                        <p className="text-base text-muted-foreground">{result.explanation}</p>
+                        {result.audioUrl && (
+                            <audio controls src={result.audioUrl} className="w-full h-10">
+                                Your browser does not support the audio element.
+                            </audio>
+                        )}
                     </div>
                 )}
             </CardHeader>
-            <CardContent className="space-y-8">
-                 <div className="prose prose-lg dark:prose-invert max-w-none rounded-lg border bg-muted/20 p-6 whitespace-pre-wrap font-sans">
-                     <Accordion type="multiple" defaultValue={['module-0']} className="w-full">
-                        {modules.map((module, moduleIndex) => (
-                            <AccordionItem value={`module-${moduleIndex}`} key={moduleIndex}>
-                                <AccordionTrigger className="text-xl font-bold">
-                                    Module {moduleIndex + 1}: {module.title}
-                                </AccordionTrigger>
-                                <AccordionContent className="pl-4">
-                                     <Accordion type="single" collapsible className="w-full">
-                                        {module.lessons.map((lesson, lessonIndex) => (
-                                            <AccordionItem value={`lesson-${moduleIndex}-${lessonIndex}`} key={lessonIndex}>
-                                                <AccordionTrigger>
-                                                    Lesson {lessonIndex + 1}: {lesson.title}
-                                                </AccordionTrigger>
-                                                <AccordionContent className="prose dark:prose-invert max-w-none">
-                                                    <div dangerouslySetInnerHTML={{ __html: lesson.content.replace(/\n/g, '<br />') }} />
-                                                </AccordionContent>
-                                            </AccordionItem>
-                                        ))}
-                                    </Accordion>
-                                </AccordionContent>
-                            </AccordionItem>
-                        ))}
-                    </Accordion>
-                 </div>
-
-                 {result.relatedResources && result.relatedResources.length > 0 && (
-                     <div>
-                        <h3 className="text-2xl font-bold mb-4 font-headline">Further Learning</h3>
+            <CardContent>
+                <Tabs defaultValue="course">
+                    <TabsList className="grid w-full grid-cols-3 mb-6">
+                        <TabsTrigger value="course"><BookText className="mr-2"/> Course Content</TabsTrigger>
+                        <TabsTrigger value="resources" disabled={!result.relatedResources || result.relatedResources.length === 0}><Video className="mr-2"/>Further Learning</TabsTrigger>
+                        <TabsTrigger value="visual" disabled={!result.imageUrl}><ImageIcon className="mr-2"/>Visual Aid</TabsTrigger>
+                    </TabsList>
+                    <TabsContent value="course" className="rounded-lg border bg-muted/30 p-2 sm:p-4">
+                        <Accordion type="multiple" defaultValue={modules.length > 0 ? ['module-0'] : []} className="w-full">
+                            {modules.map((module, moduleIndex) => (
+                                <AccordionItem value={`module-${moduleIndex}`} key={moduleIndex}>
+                                    <AccordionTrigger className="text-lg sm:text-xl font-bold hover:no-underline p-4">
+                                        <div className="flex items-center gap-4">
+                                            <div className="bg-primary text-primary-foreground rounded-full h-8 w-8 flex items-center justify-center font-bold text-sm flex-shrink-0">{moduleIndex + 1}</div>
+                                            {module.title}
+                                        </div>
+                                    </AccordionTrigger>
+                                    <AccordionContent className="p-1">
+                                        <Accordion type="single" collapsible className="w-full">
+                                            {module.lessons.map((lesson, lessonIndex) => (
+                                                <AccordionItem value={`lesson-${moduleIndex}-${lessonIndex}`} key={lessonIndex} className="border-b-0">
+                                                    <AccordionTrigger className="font-semibold hover:no-underline bg-background rounded-md px-4 my-1">
+                                                        Lesson {lessonIndex + 1}: {lesson.title}
+                                                    </AccordionTrigger>
+                                                    <AccordionContent className="p-6">
+                                                        <LessonContentDisplay content={lesson.content} />
+                                                    </AccordionContent>
+                                                </AccordionItem>
+                                            ))}
+                                        </Accordion>
+                                    </AccordionContent>
+                                </AccordionItem>
+                            ))}
+                        </Accordion>
+                    </TabsContent>
+                    <TabsContent value="resources">
                         <div className="grid sm:grid-cols-2 lg:grid-cols-3 gap-4">
-                            {result.relatedResources.map((resource, index) => (
+                            {result.relatedResources?.map((resource, index) => (
                                 <a 
                                     key={index} 
                                     href={resource.url} 
@@ -110,19 +148,15 @@ const CourseDisplay = ({ result, topic }: { result: MyTutorOutput; topic: string
                                 </a>
                             ))}
                         </div>
-                    </div>
-                )}
-                
-                {result.imageUrl && (
-                    <div>
-                        <h3 className="text-2xl font-bold mb-4 font-headline">Visual Aid</h3>
-                        <div className="relative aspect-video w-full overflow-hidden rounded-lg border">
-                                <Image src={result.imageUrl} alt="Generated image for the course" layout="fill" objectFit="cover" />
+                    </TabsContent>
+                    <TabsContent value="visual">
+                         <div className="relative aspect-video w-full overflow-hidden rounded-lg border">
+                                {result.imageUrl && <Image src={result.imageUrl} alt="Generated image for the course" layout="fill" objectFit="cover" />}
                         </div>
-                    </div>
-                )}
+                    </TabsContent>
+                </Tabs>
 
-                <div className="flex justify-between items-center pt-6 border-t">
+                <div className="flex justify-between items-center pt-6 mt-6 border-t">
                     <Button variant="outline"><ChevronLeft/> Previous Lesson</Button>
                     <Button>Mark as Complete</Button>
                     <Button variant="outline">Next Lesson <ChevronRight/></Button>
@@ -228,7 +262,7 @@ export default function MyTutorPage() {
             <CardContent className="grid md:grid-cols-2 lg:grid-cols-3 gap-6">
                 <div className="flex items-start space-x-4 rounded-lg border p-4">
                     <Search className="h-6 w-6 mt-1 text-primary"/>
-                    <div className="space-y-1">
+                    <div className="space-y-1 flex-1">
                         <Label htmlFor="research-mode" className="font-semibold">Research Mode</Label>
                         <p className="text-xs text-muted-foreground">Perform a deeper, more thorough search for content.</p>
                     </div>
@@ -236,7 +270,7 @@ export default function MyTutorPage() {
                 </div>
                 <div className="flex items-start space-x-4 rounded-lg border p-4">
                     <Upload className="h-6 w-6 mt-1 text-primary"/>
-                    <div className="space-y-1">
+                    <div className="space-y-1 flex-1">
                         <Label htmlFor="own-sources" className="font-semibold">Use Own Sources</Label>
                         <p className="text-xs text-muted-foreground">Upload a document to use as the primary source.</p>
                     </div>
@@ -244,7 +278,7 @@ export default function MyTutorPage() {
                 </div>
                  <div className="flex items-start space-x-4 rounded-lg border p-4">
                     <ClipboardList className="h-6 w-6 mt-1 text-primary"/>
-                    <div className="space-y-1">
+                    <div className="space-y-1 flex-1">
                         <Label htmlFor="define-structure" className="font-semibold">Define Structure</Label>
                         <p className="text-xs text-muted-foreground">Provide a custom plan or outline for the course.</p>
                     </div>
@@ -320,7 +354,7 @@ export default function MyTutorPage() {
             </Card>
         )}
 
-        {result && <CourseDisplay result={result} topic={topic} />}
+        {result && <CourseDisplay result={result} />}
       </form>
     </div>
   );

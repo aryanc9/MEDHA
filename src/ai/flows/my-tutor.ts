@@ -28,7 +28,7 @@ export type MyTutorInput = z.infer<typeof MyTutorInputSchema>;
 
 const CourseLessonSchema = z.object({
   title: z.string().describe("The title of the lesson."),
-  content: z.string().describe("The detailed content of the lesson, formatted in Markdown."),
+  content: z.string().describe("The detailed content of the lesson, formatted in Markdown using headings, bold text, and lists with '- ' markers."),
 });
 
 const CourseModuleSchema = z.object({
@@ -90,7 +90,7 @@ const tutorPrompt = ai.definePrompt({
     - The course must have a main title and a brief overview.
     - The course must be divided into multiple modules.
     - Each module must contain multiple lessons.
-    - Each lesson must have a title and detailed content formatted in Markdown.
+    - Each lesson must have a title and detailed content formatted in Markdown. Use headings, bold text, and for lists, use a "- " marker for each item.
     
     In addition to the main response, find 2-3 highly relevant external resources (like YouTube videos or in-depth articles) that would help the user understand the topic better. Provide the title, URL, and type for each resource.
     `
@@ -134,25 +134,30 @@ const myTutorFlow = ai.defineFlow(
         })(),
         (async () => {
             if (!explanation) return undefined;
-            const { media } = await ai.generate({
-              model: 'googleai/gemini-2.5-flash-preview-tts',
-              config: {
-                  responseModalities: ['AUDIO'],
-                  speechConfig: {
-                    voiceConfig: {
-                        prebuiltVoiceConfig: { voiceName: 'Algenib' },
+            try {
+                const { media } = await ai.generate({
+                    model: 'googleai/gemini-2.5-flash-preview-tts',
+                    config: {
+                        responseModalities: ['AUDIO'],
+                        speechConfig: {
+                        voiceConfig: {
+                            prebuiltVoiceConfig: { voiceName: 'Algenib' },
+                        },
+                        },
                     },
-                  },
-              },
-              prompt: explanation,
-            });
-            if (!media) return undefined;
-            const audioBuffer = Buffer.from(
-              media.url.substring(media.url.indexOf(',') + 1),
-              'base64'
-            );
-            const wavBase64 = await toWav(audioBuffer);
-            return `data:audio/wav;base64,${wavBase64}`;
+                    prompt: explanation,
+                });
+                if (!media) return undefined;
+                const audioBuffer = Buffer.from(
+                    media.url.substring(media.url.indexOf(',') + 1),
+                    'base64'
+                );
+                const wavBase64 = await toWav(audioBuffer);
+                return `data:audio/wav;base64,${wavBase64}`;
+            } catch (e) {
+                console.warn("TTS generation failed, likely due to quota. Skipping.", e);
+                return undefined;
+            }
         })()
     ]);
 
