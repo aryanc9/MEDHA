@@ -103,36 +103,47 @@ const myTutorFlow = ai.defineFlow(
 
     const [imageUrl, audioUrl] = await Promise.all([
       imagePrompt ? (async () => {
-        const { media } = await ai.generate({
-          model: 'googleai/gemini-2.0-flash-preview-image-generation',
-          prompt: imagePrompt,
-          config: {
-            responseModalities: ['TEXT', 'IMAGE'],
-          },
-        });
-        return media?.url;
+        try {
+            const { media } = await ai.generate({
+              model: 'googleai/gemini-2.0-flash-preview-image-generation',
+              prompt: imagePrompt,
+              config: {
+                responseModalities: ['TEXT', 'IMAGE'],
+              },
+            });
+            return media?.url;
+        } catch (e) {
+            console.error("Image generation failed:", e);
+            return undefined;
+        }
       })() : Promise.resolve(undefined),
 
       explanation ? (async () => {
-        const { media } = await ai.generate({
-          model: 'googleai/gemini-2.5-flash-preview-tts',
-          config: {
-            responseModalities: ['AUDIO'],
-            speechConfig: {
-              voiceConfig: {
-                prebuiltVoiceConfig: { voiceName: 'Algenib' },
-              },
+        try {
+            const { media } = await ai.generate({
+            model: 'googleai/gemini-2.5-flash-preview-tts',
+            config: {
+                responseModalities: ['AUDIO'],
+                speechConfig: {
+                voiceConfig: {
+                    prebuiltVoiceConfig: { voiceName: 'Algenib' },
+                },
+                },
             },
-          },
-          prompt: explanation,
-        });
-        if (!media) return undefined;
-        const audioBuffer = Buffer.from(
-          media.url.substring(media.url.indexOf(',') + 1),
-          'base64'
-        );
-        const wavBase64 = await toWav(audioBuffer);
-        return `data:audio/wav;base64,${wavBase64}`;
+            prompt: explanation,
+            });
+            if (!media) return undefined;
+            const audioBuffer = Buffer.from(
+            media.url.substring(media.url.indexOf(',') + 1),
+            'base64'
+            );
+            const wavBase64 = await toWav(audioBuffer);
+            return `data:audio/wav;base64,${wavBase64}`;
+        } catch (e) {
+            console.error("TTS generation failed:", e);
+            // Don't block the response if TTS fails, just return undefined for audioUrl
+            return undefined; 
+        }
       })() : Promise.resolve(undefined),
     ]);
     
