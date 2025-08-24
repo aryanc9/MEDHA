@@ -62,7 +62,6 @@ const MyTutorOutputSchema = z.object({
   course: CourseSchema.optional().describe("The generated course content, structured into modules and lessons."),
   relatedResources: RelatedResourcesSchema.optional().describe('A list of related resources like YouTube videos or articles.'),
   id: z.string().optional().describe('The ID of the saved course document.'),
-  courseId: z.string().optional().describe('The ID of the saved course document. DEPRECATED, use id instead.'),
   createdAt: z.string().optional().describe('The creation date of the course.'),
   prompt: z.string().optional().describe('The original prompt for the course.'),
 });
@@ -75,7 +74,7 @@ export async function myTutor(input: MyTutorInput): Promise<MyTutorOutput> {
 const tutorPrompt = ai.definePrompt({
     name: 'tutorPrompt',
     input: { schema: MyTutorInputSchema.omit({ userId: true }) },
-    output: { schema: MyTutorOutputSchema.omit({ imageUrl: true, audioUrl: true, id: true, courseId: true, createdAt: true, prompt: true }) },
+    output: { schema: MyTutorOutputSchema.omit({ imageUrl: true, audioUrl: true, id: true, createdAt: true, prompt: true }) },
     prompt: `You are an expert AI course creator and tutor. Your goal is to generate a comprehensive, well-structured course based on the user's request. The course should be broken down into a logical hierarchy of modules and lessons. Also find relevant external resources to supplement your answer.
 
     User Topic: {{{prompt}}}
@@ -126,19 +125,22 @@ const myTutorFlow = ai.defineFlow(
     outputSchema: MyTutorOutputSchema,
   },
   async (input) => {
-    const { output } = await tutorPrompt(input);
-    if (!output) {
-      throw new Error('Failed to get a response from the tutor prompt.');
+    // Step 1: Generate the core text content of the course.
+    const { output: courseOutput } = await tutorPrompt(input);
+    if (!courseOutput) {
+      console.error("Tutor prompt failed, possibly due to rate limiting. Check your Google AI plan and quota.");
+      throw new Error('Failed to get a response from the AI. You may have exceeded your usage quota.');
     }
 
-    const { explanation, course, relatedResources } = output;
+    const { explanation, course, relatedResources } = courseOutput;
 
-    // Generate image and audio in parallel
+    // Step 2: Generate image and audio in parallel. These are non-critical, so if they fail, the course content is still returned.
     const [imageUrlResult, audioUrlResult] = await Promise.allSettled([
         (async () => {
             try {
                 const { output: imagePromptOutput } = await imageGenerationPrompt({ topic: input.prompt });
                 if (!imagePromptOutput?.imagePrompt) return undefined;
+
                 const { media } = await ai.generate({
                     model: 'googleai/gemini-2.0-flash-preview-image-generation',
                     prompt: imagePromptOutput.imagePrompt,
@@ -148,7 +150,7 @@ const myTutorFlow = ai.defineFlow(
                 });
                 return media?.url;
             } catch (e) {
-                console.error("Image generation failed:", e);
+                console.warn("Image generation failed, likely due to quota. Skipping image.", e);
                 return undefined;
             }
         })(),
@@ -175,7 +177,7 @@ const myTutorFlow = ai.defineFlow(
                 const wavBase64 = await toWav(audioBuffer);
                 return `data:audio/wav;base64,${wavBase64}`;
             } catch (e) {
-                console.warn("TTS generation failed, likely due to quota. Skipping.", e);
+                console.warn("TTS generation failed, likely due to quota. Skipping audio.", e);
                 return undefined;
             }
         })()
@@ -183,15 +185,8 @@ const myTutorFlow = ai.defineFlow(
 
     const imageUrl = imageUrlResult.status === 'fulfilled' ? imageUrlResult.value : undefined;
     const audioUrl = audioUrlResult.status === 'fulfilled' ? audioUrlResult.value : undefined;
-    
-    if (imageUrlResult.status === 'rejected') {
-        console.error("Image generation failed:", imageUrlResult.reason);
-    }
-    if (audioUrlResult.status === 'rejected') {
-        console.error("TTS generation failed:", audioUrlResult.reason);
-    }
-    
-    // Create the final result object to be saved and returned
+
+    // Step 3: Assemble the final result object.
     const finalResult: MyTutorOutput = {
       explanation: explanation || "I'm sorry, I couldn't come up with an explanation for that.",
       imageUrl,
@@ -201,31 +196,36 @@ const myTutorFlow = ai.defineFlow(
       prompt: input.prompt,
     };
     
-    // Save to Firestore
+    // Step 4: Save the complete result to Firestore.
     try {
         const courseId = doc(collection(db, `users/${input.userId}/courses`)).id;
         const courseDocRef = doc(db, `users/${input.userId}/courses/${courseId}`);
 
         const historyData = {
             ...finalResult,
-            id: courseId, // Ensure the document ID is saved within the document
-            createdAt: new Date().toISOString(), // Use a standardized timestamp
+            id: courseId,
+            createdAt: new Date().toISOString(),
         };
         
-        // Remove excessively large image data URIs before saving if necessary
+        // Prevent overly large data URIs from being saved to Firestore.
         if (historyData.imageUrl && historyData.imageUrl.length > 1048487) {
+            console.warn("Generated image is too large for Firestore, omitting from history.");
             historyData.imageUrl = undefined;
+        }
+         if (historyData.audioUrl && historyData.audioUrl.length > 1048487) {
+            console.warn("Generated audio is too large for Firestore, omitting from history.");
+            historyData.audioUrl = undefined;
         }
 
         await setDoc(courseDocRef, historyData);
 
-        // Attach the ID and createdAt timestamp to the object returned to the client
+        // Attach the ID and timestamp to the object returned to the client.
         finalResult.id = courseId;
         finalResult.createdAt = historyData.createdAt;
 
     } catch(error) {
         console.error("Failed to save course history:", error);
-        // Don't block the response if saving fails, just return the generated content
+        // Do not block the response if saving fails, just return the generated content.
     }
 
     return finalResult;
