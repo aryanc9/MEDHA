@@ -2,7 +2,7 @@
 'use server';
 
 /**
- * @fileOverview A real-time, multilingual conversational AI called "Talk Buddy".
+ * @fileOverview A real-time, multilingual conversational AI called "Talk Buddy" with history.
  *
  * - talkBuddy - A function that handles conversational interactions.
  * - TalkBuddyInput - The input type for the talkBuddy function.
@@ -12,12 +12,17 @@
 import { ai } from '@/ai/genkit';
 import { z } from 'zod';
 import { toWav } from '@/lib/audio';
+import { getFirestore, doc, setDoc, collection, addDoc } from "firebase/firestore";
+import { firebaseApp } from '@/lib/firebase';
 import {
   TalkBuddyInputSchema,
   type TalkBuddyInput,
   TalkBuddyOutputSchema,
-  type TalkBuddyOutput
+  type TalkBuddyOutput,
+  TalkBuddyMessageSchema
 } from '@/ai/schemas/talk-buddy-schemas';
+
+const db = getFirestore(firebaseApp);
 
 export async function talkBuddy(input: TalkBuddyInput): Promise<TalkBuddyOutput> {
   return talkBuddyFlow(input);
@@ -84,6 +89,35 @@ const talkBuddyFlow = ai.defineFlow(
       console.warn("Talk Buddy TTS generation failed, skipping audio.", e);
     }
     
-    return { responseText, audioUrl };
+    const finalResult: TalkBuddyOutput = { responseText, audioUrl };
+
+    // 3. Save conversation to Firestore
+    try {
+        const conversationId = input.conversationId || doc(collection(db, 'users', input.userId, 'conversations')).id;
+        const conversationDocRef = doc(db, `users/${input.userId}/conversations/${conversationId}`);
+
+        const userMessage = { sender: 'user', text: input.prompt };
+        const botMessage = { sender: 'bot', text: responseText, audioUrl: audioUrl };
+        
+        const updatedMessages = [...(input.messages || []), userMessage, botMessage];
+
+        await setDoc(conversationDocRef, {
+            id: conversationId,
+            title: input.messages && input.messages.length > 0 ? input.messages[0].text : input.prompt,
+            messages: updatedMessages,
+            language: input.language,
+            createdAt: new Date().toISOString(),
+            updatedAt: new Date().toISOString(),
+        }, { merge: true });
+
+        finalResult.conversationId = conversationId;
+
+    } catch (error) {
+        console.error("Failed to save conversation history:", error);
+    }
+
+    return finalResult;
   }
 );
+
+    

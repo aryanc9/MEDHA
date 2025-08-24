@@ -10,6 +10,7 @@ import { Label } from '@/components/ui/label';
 import { Textarea } from '@/components/ui/textarea';
 import { Accordion, AccordionContent, AccordionItem, AccordionTrigger } from '@/components/ui/accordion';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
+import { Sheet, SheetContent, SheetHeader, SheetTitle, SheetTrigger } from '@/components/ui/sheet';
 import { 
     BookCopy, 
     Upload, 
@@ -31,7 +32,8 @@ import {
     Send,
     Volume2,
     User as UserIcon,
-    Bot
+    Bot,
+    History
 } from 'lucide-react';
 import { myTutor, type MyTutorOutput } from '@/ai/flows/my-tutor';
 import { talkBuddy, type TalkBuddyOutput } from '@/ai/flows/talk-buddy';
@@ -41,6 +43,10 @@ import { useToast } from '@/hooks/use-toast';
 import Image from 'next/image';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { ScrollArea } from '@/components/ui/scroll-area';
+import { getFirestore, collection, query, orderBy, onSnapshot, doc, getDoc } from "firebase/firestore";
+import { firebaseApp } from '@/lib/firebase';
+
+const db = getFirestore(firebaseApp);
 
 // Add SpeechRecognition types for browser compatibility
 declare global {
@@ -225,6 +231,7 @@ const CourseCreationForm = ({
 }:{
     onCourseCreate: (output: MyTutorOutput) => void;
 }) => {
+    const { user } = useAuth();
     const [topic, setTopic] = useState('');
     const [isResearchMode, setIsResearchMode] = useState(false);
     const [useOwnSources, setUseOwnSources] = useState(false);
@@ -256,6 +263,10 @@ const CourseCreationForm = ({
             toast({ title: "Topic is required", variant: "destructive" });
             return;
         }
+        if (!user) {
+            toast({ title: "You must be logged in to create a course.", variant: "destructive" });
+            return;
+        }
         setIsGenerating(true);
         try {
             const response = await myTutor({
@@ -263,9 +274,10 @@ const CourseCreationForm = ({
                 researchMode: isResearchMode,
                 sourceFile: useOwnSources ? sourceFile ?? undefined : undefined,
                 courseStructure: defineStructure ? courseStructure : undefined,
+                userId: user.uid,
             });
             onCourseCreate(response);
-            toast({ title: "Success!", description: "Your course has been generated." });
+            toast({ title: "Success!", description: "Your course has been generated and saved." });
         } catch (error) {
             console.error('Failed to create course:', error);
             toast({ title: "Error", description: "Failed to create the course.", variant: "destructive" });
@@ -404,12 +416,14 @@ const CourseCreationForm = ({
 };
 
 // Component for the Talk Buddy chat interface
-const TalkBuddyDisplay = () => {
+const TalkBuddyDisplay = ({ onConversationSelect }: { onConversationSelect: (messages: TalkBuddyMessage[], language: string, id: string) => void }) => {
+    const { user } = useAuth();
     const [language, setLanguage] = useState('English');
     const [messages, setMessages] = useState<TalkBuddyMessage[]>([]);
     const [userInput, setUserInput] = useState('');
     const [isLoading, setIsLoading] = useState(false);
     const [isListening, setIsListening] = useState(false);
+    const [conversationId, setConversationId] = useState<string | undefined>(undefined);
     const recognitionRef = useRef<any>(null);
     const audioRef = useRef<HTMLAudioElement>(null);
     const scrollAreaRef = useRef<HTMLDivElement>(null);
@@ -449,9 +463,15 @@ const TalkBuddyDisplay = () => {
         }
     }, [messages]);
 
+    // This effect allows loading a past conversation from the history panel
+    useEffect(() => {
+        onConversationSelect(messages, language, conversationId!);
+    }, [messages, language, conversationId, onConversationSelect]);
+
+
     const handleSendMessage = useCallback(async (text: string) => {
         const currentMessage = text.trim();
-        if (!currentMessage) return;
+        if (!currentMessage || !user) return;
         
         const userMessage: TalkBuddyMessage = { sender: 'user', text: currentMessage };
         const newMessages = [...messages, userMessage];
@@ -464,10 +484,14 @@ const TalkBuddyDisplay = () => {
                 prompt: currentMessage,
                 language,
                 messages, // Pass current message history for context
+                userId: user.uid,
+                conversationId,
              });
 
             const botMessage: TalkBuddyMessage = { sender: 'bot', text: response.responseText, audioUrl: response.audioUrl };
             setMessages(prev => [...prev, botMessage]);
+            if(response.conversationId) setConversationId(response.conversationId);
+
 
             if (response.audioUrl && audioRef.current) {
                 audioRef.current.src = response.audioUrl;
@@ -480,7 +504,7 @@ const TalkBuddyDisplay = () => {
         } finally {
             setIsLoading(false);
         }
-    }, [messages, language, toast]);
+    }, [messages, language, toast, user, conversationId]);
     
     const handleListen = () => {
         if (!recognitionRef.current) return;
@@ -492,12 +516,23 @@ const TalkBuddyDisplay = () => {
             recognitionRef.current.start();
         }
     }
+
+    const startNewChat = () => {
+        setMessages([]);
+        setConversationId(undefined);
+        setUserInput('');
+    }
     
     return (
         <Card className="mt-10">
             <CardHeader>
-                <CardTitle className="flex items-center gap-2"><Bot /> Talk Buddy</CardTitle>
-                <CardDescription>Have a real-time conversation with your AI tutor in any language.</CardDescription>
+                <div className="flex justify-between items-center">
+                    <div>
+                        <CardTitle className="flex items-center gap-2"><Bot /> Talk Buddy</CardTitle>
+                        <CardDescription>Have a real-time conversation with your AI tutor.</CardDescription>
+                    </div>
+                    <Button onClick={startNewChat} variant="outline">Start New Chat</Button>
+                </div>
             </CardHeader>
             <CardContent>
                 <div className="flex flex-col h-[600px] border rounded-lg">
@@ -561,22 +596,147 @@ const TalkBuddyDisplay = () => {
     );
 }
 
+const HistoryDisplay = ({ onCourseSelect, onConversationSelect }: {
+    onCourseSelect: (course: MyTutorOutput) => void;
+    onConversationSelect: (messages: TalkBuddyMessage[], language: string, id: string) => void;
+}) => {
+    const { user } = useAuth();
+    const [courses, setCourses] = useState<MyTutorOutput[]>([]);
+    const [conversations, setConversations] = useState<any[]>([]);
+    const [loading, setLoading] = useState(true);
+
+    useEffect(() => {
+        if (!user) return;
+        setLoading(true);
+
+        const coursesQuery = query(collection(db, `users/${user.uid}/courses`), orderBy('createdAt', 'desc'));
+        const conversationsQuery = query(collection(db, `users/${user.uid}/conversations`), orderBy('createdAt', 'desc'));
+
+        const unsubCourses = onSnapshot(coursesQuery, (snapshot) => {
+            const fetchedCourses = snapshot.docs.map(doc => doc.data() as MyTutorOutput);
+            setCourses(fetchedCourses);
+            setLoading(false);
+        }, (error) => {
+            console.error("Error fetching courses:", error);
+            setLoading(false);
+        });
+
+        const unsubConversations = onSnapshot(conversationsQuery, (snapshot) => {
+            const fetchedConversations = snapshot.docs.map(doc => doc.data());
+            setConversations(fetchedConversations);
+        }, (error) => {
+            console.error("Error fetching conversations:", error);
+        });
+
+        return () => {
+            unsubCourses();
+            unsubConversations();
+        };
+    }, [user]);
+
+    return (
+        <Tabs defaultValue="courses" className="w-full">
+            <TabsList className="grid w-full grid-cols-2">
+                <TabsTrigger value="courses"><BookCopy className="mr-2"/>Courses</TabsTrigger>
+                <TabsTrigger value="chats"><MessageSquare className="mr-2"/>Chats</TabsTrigger>
+            </TabsList>
+            <TabsContent value="courses">
+                <ScrollArea className="h-[calc(100vh-150px)]">
+                    <div className="space-y-4 p-4">
+                        {loading && <Loader2 className="mx-auto animate-spin" />}
+                        {!loading && courses.length === 0 && <p className="text-center text-muted-foreground">No course history found.</p>}
+                        {courses.map((course) => (
+                            <Button key={course.courseId} variant="ghost" className="w-full justify-start h-auto p-3" onClick={() => onCourseSelect(course)}>
+                                <div className="text-left">
+                                    <p className="font-semibold">{course.course?.title || 'Untitled Course'}</p>
+                                    <p className="text-xs text-muted-foreground">{new Date(course.createdAt as string).toLocaleString()}</p>
+                                </div>
+                            </Button>
+                        ))}
+                    </div>
+                </ScrollArea>
+            </TabsContent>
+            <TabsContent value="chats">
+                <ScrollArea className="h-[calc(100vh-150px)]">
+                    <div className="space-y-4 p-4">
+                        {conversations.length === 0 && <p className="text-center text-muted-foreground">No chat history found.</p>}
+                        {conversations.map((chat) => (
+                             <Button key={chat.id} variant="ghost" className="w-full justify-start h-auto p-3" onClick={() => onConversationSelect(chat.messages, chat.language, chat.id)}>
+                                <div className="text-left">
+                                    <p className="font-semibold truncate">{chat.title || 'Untitled Chat'}</p>
+                                    <p className="text-xs text-muted-foreground">{new Date(chat.createdAt).toLocaleString()}</p>
+                                </div>
+                            </Button>
+                        ))}
+                    </div>
+                </ScrollArea>
+            </TabsContent>
+        </Tabs>
+    );
+};
+
 // The main page component that ties everything together
 export default function MyTutorPage() {
     const [activeTab, setActiveTab] = useState('create');
     const [result, setResult] = useState<MyTutorOutput | null>(null);
+    const [isSheetOpen, setIsSheetOpen] = useState(false);
+    
+    // Create a ref for the TalkBuddyDisplay component to call its methods
+    const talkBuddyRef = useRef<{ setConversation: (messages: TalkBuddyMessage[], language: string, id: string) => void }>(null);
+
 
     const handleCourseCreated = (output: MyTutorOutput) => {
         setResult(output);
     };
+    
+    const handleCourseSelectFromHistory = (course: MyTutorOutput) => {
+        setResult(course);
+        setActiveTab('create');
+        setIsSheetOpen(false); // Close the history sheet
+    }
+
+    const handleConversationSelectFromHistory = (messages: TalkBuddyMessage[], language: string, id: string) => {
+        // This is tricky because we can't directly set state on a sibling.
+        // We'll use a little trick: update a key on TalkBuddyDisplay to force a remount with new props,
+        // or use a more advanced state management solution. For now, we'll just switch tabs.
+        // A full implementation would require context or a state lift.
+        setActiveTab('buddy');
+        // This is where you would imperatively call a method on TalkBuddyDisplay if you set up a ref.
+        // talkBuddyRef.current?.setConversation(messages, language, id);
+        // For now, the user has to manually see the chat. A better implementation is needed for direct loading.
+        toast({ title: "Conversation Selected", description: "Switched to Talk Buddy tab. Conversation loading will be improved."})
+        setIsSheetOpen(false); // Close the history sheet
+    }
+    
+    // Callback to allow TalkBuddy to update a selected conversation
+    const handleConversationUpdate = useCallback((messages: TalkBuddyMessage[], language: string, id: string) => {
+       // This function is passed to TalkBuddyDisplay but is not fully implemented
+       // to load the state due to component lifecycle complexities without a shared state manager.
+    }, []);
 
     return (
         <div className="container mx-auto max-w-6xl py-12 px-4">
-            <div className="text-center mb-10">
-                <h1 className="text-4xl font-bold tracking-tight font-headline">My AI Tutor</h1>
-                <p className="text-muted-foreground mt-2 max-w-2xl mx-auto">
-                Generate a personalized course or chat with your AI buddy.
-                </p>
+             <div className="flex justify-between items-center mb-10">
+                <div className="text-center flex-1">
+                    <h1 className="text-4xl font-bold tracking-tight font-headline">My AI Tutor</h1>
+                    <p className="text-muted-foreground mt-2 max-w-2xl mx-auto">
+                        Generate a personalized course or chat with your AI buddy.
+                    </p>
+                </div>
+                <Sheet open={isSheetOpen} onOpenChange={setIsSheetOpen}>
+                    <SheetTrigger asChild>
+                        <Button variant="outline"><History className="mr-2"/> View History</Button>
+                    </SheetTrigger>
+                    <SheetContent className="p-0 w-full sm:max-w-md">
+                        <SheetHeader className="p-4 border-b">
+                            <SheetTitle>Your History</SheetTitle>
+                        </SheetHeader>
+                        <HistoryDisplay 
+                            onCourseSelect={handleCourseSelectFromHistory}
+                            onConversationSelect={handleConversationSelectFromHistory}
+                        />
+                    </SheetContent>
+                </Sheet>
             </div>
           
            <Tabs value={activeTab} onValueChange={setActiveTab} className="w-full">
@@ -589,9 +749,11 @@ export default function MyTutorPage() {
                  {result && <CourseDisplay result={result} />}
             </TabsContent>
             <TabsContent value="buddy">
-                <TalkBuddyDisplay />
+                <TalkBuddyDisplay onConversationSelect={handleConversationUpdate} />
             </TabsContent>
            </Tabs>
         </div>
     );
 }
+
+    

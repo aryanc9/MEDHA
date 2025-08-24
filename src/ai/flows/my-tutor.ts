@@ -2,9 +2,9 @@
 'use server';
 
 /**
- * @fileOverview A comprehensive tutoring agent that can respond with text, images, and voice.
+ * @fileOverview A comprehensive tutoring agent that can respond with text, images, and voice, and save interaction history.
  *
- * - myTutor - A function that handles tutoring requests.
+ * - myTutor - A function that handles tutoring requests and saves the output.
  * - MyTutorInput - The input type for the myTutor function.
  * - MyTutorOutput - The return type for the myTutor function.
  */
@@ -12,6 +12,10 @@
 import {ai} from '@/ai/genkit';
 import {z} from 'zod';
 import { toWav } from '@/lib/audio';
+import { getFirestore, doc, setDoc } from "firebase/firestore";
+import { firebaseApp } from '@/lib/firebase';
+
+const db = getFirestore(firebaseApp);
 
 const MyTutorInputSchema = z.object({
   prompt: z.string().describe("The user's question or topic to explain."),
@@ -23,6 +27,7 @@ const MyTutorInputSchema = z.object({
     "A source file provided by the user, as a data URI that must include a MIME type and use Base64 encoding."
   ),
   courseStructure: z.string().optional().describe("A user-defined structure or plan for the course."),
+  userId: z.string().describe("The user's unique ID to save history."),
 });
 export type MyTutorInput = z.infer<typeof MyTutorInputSchema>;
 
@@ -51,6 +56,7 @@ const MyTutorOutputSchema = z.object({
     type: z.enum(['video', 'article', 'other']),
     videoId: z.string().optional().describe("The YouTube video ID if the resource is a YouTube video."),
   })).optional().describe('A list of related resources like YouTube videos or articles.'),
+  courseId: z.string().optional().describe('The ID of the saved course document.'),
 });
 export type MyTutorOutput = z.infer<typeof MyTutorOutputSchema>;
 
@@ -60,8 +66,8 @@ export async function myTutor(input: MyTutorInput): Promise<MyTutorOutput> {
 
 const tutorPrompt = ai.definePrompt({
     name: 'tutorPrompt',
-    input: { schema: MyTutorInputSchema },
-    output: { schema: MyTutorOutputSchema.omit({ imageUrl: true, audioUrl: true }) },
+    input: { schema: MyTutorInputSchema.omit({ userId: true }) },
+    output: { schema: MyTutorOutputSchema.omit({ imageUrl: true, audioUrl: true, courseId: true }) },
     prompt: `You are an expert AI course creator and tutor. Your goal is to generate a comprehensive, well-structured course based on the user's request. The course should be broken down into a logical hierarchy of modules and lessons. Also find relevant external resources to supplement your answer.
 
     User Topic: {{{prompt}}}
@@ -126,12 +132,17 @@ const myTutorFlow = ai.defineFlow(
                 const { output: imagePromptOutput } = await imageGenerationPrompt({ topic: input.prompt });
                 if (!imagePromptOutput?.imagePrompt) return undefined;
                 const { media } = await ai.generate({
-                model: 'googleai/gemini-2.0-flash-preview-image-generation',
-                prompt: imagePromptOutput.imagePrompt,
-                config: {
-                    responseModalities: ['TEXT', 'IMAGE'],
-                },
+                    model: 'googleai/gemini-2.0-flash-preview-image-generation',
+                    prompt: imagePromptOutput.imagePrompt,
+                    config: {
+                        responseModalities: ['TEXT', 'IMAGE'],
+                    },
                 });
+                // Don't return the full data URI if it's too large, to avoid DB errors
+                if (media?.url && media.url.length > 1048487) {
+                    console.warn("Generated image is too large for Firestore, it will be displayed but not saved in history.");
+                    return media.url; 
+                }
                 return media?.url;
             } catch (e) {
                 console.error("Image generation failed:", e);
@@ -177,12 +188,37 @@ const myTutorFlow = ai.defineFlow(
         console.error("TTS generation failed:", audioUrlResult.reason);
     }
 
-    return {
+    const finalResult: MyTutorOutput = {
       explanation: explanation || "I'm sorry, I couldn't come up with an explanation for that.",
       imageUrl,
       audioUrl,
       course,
       relatedResources: relatedResources || [],
     };
+    
+    // Save to Firestore
+    try {
+        const courseId = doc(doc(db, 'users', input.userId), 'courses', 'dummy').id; // Generate a new ID
+        const courseDocRef = doc(db, `users/${input.userId}/courses/${courseId}`);
+
+        // Create a history object, excluding potentially oversized images from being saved
+        const historyData = {
+            ...finalResult,
+            imageUrl: imageUrl && imageUrl.length > 1048487 ? undefined : imageUrl,
+            prompt: input.prompt,
+            createdAt: new Date().toISOString(),
+            id: courseId
+        };
+        
+        await setDoc(courseDocRef, historyData);
+        finalResult.courseId = courseId;
+    } catch(error) {
+        console.error("Failed to save course history:", error);
+        // Don't block the response if saving fails
+    }
+
+    return finalResult;
   }
 );
+
+    
