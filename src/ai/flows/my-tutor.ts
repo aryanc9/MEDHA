@@ -92,7 +92,7 @@ const tutorPrompt = ai.definePrompt({
     Learning Outcomes: {{courseStructure.learningOutcomes}}
     Course Size: {{courseStructure.courseSize.modules}} modules, with {{courseStructure.courseSize.lessonsPerModule}} lessons per module.
     Instructional Methods: {{courseStructure.instructionalMethods}}
-    Additional Details: {{courseructure.additionalDetails}}
+    Additional Details: {{courseStructure.additionalDetails}}
     {{/if}}
 
     {{#if image}}
