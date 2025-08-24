@@ -355,7 +355,7 @@ export default function MyTutorPage() {
                             <div className="space-y-6">
                                 <div className="prose dark:prose-invert max-w-none">
                                     {result.explanation && <p>{result.explanation}</p>}
-                                    {result.courseContent && <pre className="whitespace-pre-wrap font-sans">{result.courseContent}</pre>}
+                                    {result.courseContent && <div className="whitespace-pre-wrap font-sans">{result.courseContent}</div>}
                                 </div>
 
                                 {result.relatedResources && result.relatedResources.length > 0 && (
