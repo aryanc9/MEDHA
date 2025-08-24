@@ -187,17 +187,13 @@ const myTutorFlow = ai.defineFlow(
     if(input.userId && course) {
         const courseDocRef = doc(collection(db, 'users', input.userId, 'courses'));
         
-        const responseForDb = {
+        await setDoc(courseDocRef, {
+            ...input,
             explanation,
             course,
             relatedResources,
             imageUrl: imageUrl || null,
-            audioUrl: audioUrl || null
-        };
-
-        await setDoc(courseDocRef, {
-            ...input,
-            response: responseForDb,
+            audioUrl: audioUrl || null,
             createdAt: serverTimestamp(),
         });
         courseId = courseDocRef.id;

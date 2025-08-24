@@ -428,7 +428,7 @@ const HistoryDisplay = () => {
                         <ul className="space-y-2">
                             {courses.map(course => (
                                 <li key={course.id} className="p-3 border rounded-md hover:bg-muted/50">
-                                    <p className="font-semibold">{course.response.course.title}</p>
+                                    <p className="font-semibold">{course.course.title}</p>
                                     <p className="text-sm text-muted-foreground">Created on {course.createdAt ? format(new Date(course.createdAt.seconds * 1000), 'PPP') : 'N/A'}</p>
                                 </li>
                             ))}
@@ -693,4 +693,3 @@ export default function MyTutorPage() {
   );
 }
 
-    
