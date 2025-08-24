@@ -39,7 +39,7 @@ const MyTutorInputSchema = z.object({
 export type MyTutorInput = z.infer<typeof MyTutorInputSchema>;
 
 const MyTutorOutputSchema = z.object({
-  textResponse: z.string().describe('The primary textual explanation or answer.'),
+  explanation: z.string().describe('The primary textual explanation or answer.'),
   imageUrl: z.string().optional().describe('URL of a generated image to supplement the explanation, if applicable.'),
   audioUrl: z.string().optional().describe('URL of a generated audio of the text response.'),
   chartData: z.any().optional().describe('Data for a chart, if applicable. Must be an array of objects with string/number values.'),
@@ -164,7 +164,7 @@ const myTutorFlow = ai.defineFlow(
     const [imageUrl, audioUrl] = await Promise.all(promises);
 
     return {
-      textResponse: explanation || "I'm sorry, I couldn't come up with an explanation for that.",
+      explanation: explanation || "I'm sorry, I couldn't come up with an explanation for that.",
       imageUrl,
       audioUrl,
       chartData,
