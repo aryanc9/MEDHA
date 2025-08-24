@@ -18,11 +18,6 @@ import {
   TalkBuddyOutputSchema,
   type TalkBuddyOutput
 } from '@/ai/schemas/talk-buddy-schemas';
-import { getFirestore, doc, setDoc, serverTimestamp, collection, updateDoc, arrayUnion } from 'firebase/firestore';
-import { firebaseApp } from '@/lib/firebase';
-
-const db = getFirestore(firebaseApp);
-
 
 export async function talkBuddy(input: TalkBuddyInput): Promise<TalkBuddyOutput> {
   return talkBuddyFlow(input);
@@ -88,36 +83,7 @@ const talkBuddyFlow = ai.defineFlow(
     } catch (e) {
       console.warn("Talk Buddy TTS generation failed, skipping audio.", e);
     }
-
-    // 3. Save conversation to Firestore
-    let conversationId = input.conversationId;
-    if (input.userId) {
-        const userMessage = { sender: 'user' as const, text: input.prompt };
-        const botMessage = { sender: 'bot' as const, text: responseText, audioUrl: audioUrl || null };
-        
-        if (conversationId) {
-            const conversationDocRef = doc(db, 'users', input.userId, 'conversations', conversationId);
-            await updateDoc(conversationDocRef, { 
-                messages: arrayUnion(userMessage, botMessage), 
-                lastUpdatedAt: serverTimestamp() 
-            });
-        } else {
-            const conversationDocRef = doc(collection(db, 'users', input.userId, 'conversations'));
-            const newConversation = {
-                id: conversationDocRef.id,
-                userId: input.userId,
-                language: input.language,
-                startedAt: serverTimestamp(),
-                lastUpdatedAt: serverTimestamp(),
-                title: `Conversation in ${input.language} on ${new Date().toLocaleDateString()}`,
-                messages: [userMessage, botMessage]
-            };
-            await setDoc(conversationDocRef, newConversation);
-            conversationId = conversationDocRef.id;
-        }
-    }
-
-
-    return { responseText, audioUrl, conversationId };
+    
+    return { responseText, audioUrl };
   }
 );

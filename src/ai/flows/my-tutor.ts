@@ -12,10 +12,6 @@
 import {ai} from '@/ai/genkit';
 import {z} from 'zod';
 import { toWav } from '@/lib/audio';
-import { getFirestore, doc, setDoc, serverTimestamp, collection } from 'firebase/firestore';
-import { firebaseApp } from '@/lib/firebase';
-
-const db = getFirestore(firebaseApp);
 
 const MyTutorInputSchema = z.object({
   prompt: z.string().describe("The user's question or topic to explain."),
@@ -27,7 +23,6 @@ const MyTutorInputSchema = z.object({
     "A source file provided by the user, as a data URI that must include a MIME type and use Base64 encoding."
   ),
   courseStructure: z.string().optional().describe("A user-defined structure or plan for the course."),
-  userId: z.string().optional().describe("The ID of the user requesting the course."),
 });
 export type MyTutorInput = z.infer<typeof MyTutorInputSchema>;
 
@@ -56,7 +51,6 @@ const MyTutorOutputSchema = z.object({
     type: z.enum(['video', 'article', 'other']),
     videoId: z.string().optional().describe("The YouTube video ID if the resource is a YouTube video."),
   })).optional().describe('A list of related resources like YouTube videos or articles.'),
-  courseId: z.string().optional().describe("The ID of the saved course document."),
 });
 export type MyTutorOutput = z.infer<typeof MyTutorOutputSchema>;
 
@@ -67,7 +61,7 @@ export async function myTutor(input: MyTutorInput): Promise<MyTutorOutput> {
 const tutorPrompt = ai.definePrompt({
     name: 'tutorPrompt',
     input: { schema: MyTutorInputSchema },
-    output: { schema: MyTutorOutputSchema.omit({ imageUrl: true, audioUrl: true, courseId: true }) },
+    output: { schema: MyTutorOutputSchema.omit({ imageUrl: true, audioUrl: true }) },
     prompt: `You are an expert AI course creator and tutor. Your goal is to generate a comprehensive, well-structured course based on the user's request. The course should be broken down into a logical hierarchy of modules and lessons. Also find relevant external resources to supplement your answer.
 
     User Topic: {{{prompt}}}
@@ -183,32 +177,12 @@ const myTutorFlow = ai.defineFlow(
         console.error("TTS generation failed:", audioUrlResult.reason);
     }
 
-    let courseId: string | undefined = undefined;
-    if(input.userId && course) {
-        const courseDocRef = doc(collection(db, 'users', input.userId, 'courses'));
-        
-        await setDoc(courseDocRef, {
-            prompt: input.prompt,
-            researchMode: input.researchMode,
-            sourceFile: input.sourceFile || null,
-            courseStructure: input.courseStructure || null,
-            explanation,
-            course,
-            relatedResources,
-            audioUrl: audioUrl || null,
-            createdAt: serverTimestamp(),
-        });
-        courseId = courseDocRef.id;
-    }
-
-
     return {
       explanation: explanation || "I'm sorry, I couldn't come up with an explanation for that.",
       imageUrl,
       audioUrl,
       course,
       relatedResources: relatedResources || [],
-      courseId,
     };
   }
 );

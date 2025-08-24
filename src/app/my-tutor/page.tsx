@@ -10,8 +10,6 @@ import { Label } from '@/components/ui/label';
 import { Textarea } from '@/components/ui/textarea';
 import { Accordion, AccordionContent, AccordionItem, AccordionTrigger } from '@/components/ui/accordion';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
-import { Sheet, SheetContent, SheetHeader, SheetTitle, SheetTrigger, SheetDescription } from '@/components/ui/sheet';
-
 import { 
     BookCopy, 
     Upload, 
@@ -33,22 +31,16 @@ import {
     Send,
     Volume2,
     User as UserIcon,
-    Bot,
-    History
+    Bot
 } from 'lucide-react';
 import { myTutor, type MyTutorOutput } from '@/ai/flows/my-tutor';
-import { talkBuddy, type TalkBuddyInput } from '@/ai/flows/talk-buddy';
-import type { TalkBuddyOutput, TalkBuddyMessage } from '@/ai/schemas/talk-buddy-schemas';
+import { talkBuddy, type TalkBuddyOutput } from '@/ai/flows/talk-buddy';
+import type { TalkBuddyMessage } from '@/ai/schemas/talk-buddy-schemas';
 import { useAuth } from '@/hooks/use-auth';
 import { useToast } from '@/hooks/use-toast';
 import Image from 'next/image';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { ScrollArea } from '@/components/ui/scroll-area';
-import { getFirestore, collection, query, orderBy, onSnapshot } from 'firebase/firestore';
-import { firebaseApp } from '@/lib/firebase';
-import { format } from 'date-fns';
-
-const db = getFirestore(firebaseApp);
 
 // Add SpeechRecognition types for browser compatibility
 declare global {
@@ -241,7 +233,6 @@ const CourseCreationForm = ({
     const [fileName, setFileName] = useState<string | null>(null);
     const [courseStructure, setCourseStructure] = useState('');
     const [isGenerating, setIsGenerating] = useState(false);
-    const { user } = useAuth();
     const { toast } = useToast();
 
     const handleFileChange = (e: React.ChangeEvent<HTMLInputElement>) => {
@@ -272,12 +263,9 @@ const CourseCreationForm = ({
                 researchMode: isResearchMode,
                 sourceFile: useOwnSources ? sourceFile ?? undefined : undefined,
                 courseStructure: defineStructure ? courseStructure : undefined,
-                userId: user?.uid
             });
             onCourseCreate(response);
-            if (response.courseId) {
-                toast({ title: "Success!", description: "Your course has been generated and saved." });
-            }
+            toast({ title: "Success!", description: "Your course has been generated." });
         } catch (error) {
             console.error('Failed to create course:', error);
             toast({ title: "Error", description: "Failed to create the course.", variant: "destructive" });
@@ -422,8 +410,6 @@ const TalkBuddyDisplay = () => {
     const [userInput, setUserInput] = useState('');
     const [isLoading, setIsLoading] = useState(false);
     const [isListening, setIsListening] = useState(false);
-    const [conversationId, setConversationId] = useState<string | undefined>(undefined);
-    const { user } = useAuth();
     const recognitionRef = useRef<any>(null);
     const audioRef = useRef<HTMLAudioElement>(null);
     const scrollAreaRef = useRef<HTMLDivElement>(null);
@@ -465,7 +451,7 @@ const TalkBuddyDisplay = () => {
 
     const handleSendMessage = useCallback(async (text: string) => {
         const currentMessage = text.trim();
-        if (!currentMessage || !user) return;
+        if (!currentMessage) return;
         
         const userMessage: TalkBuddyMessage = { sender: 'user', text: currentMessage };
         const newMessages = [...messages, userMessage];
@@ -477,17 +463,12 @@ const TalkBuddyDisplay = () => {
             const response: TalkBuddyOutput = await talkBuddy({ 
                 prompt: currentMessage,
                 language,
-                userId: user.uid,
-                conversationId,
                 messages, // Pass current message history for context
              });
 
             const botMessage: TalkBuddyMessage = { sender: 'bot', text: response.responseText, audioUrl: response.audioUrl };
             setMessages(prev => [...prev, botMessage]);
 
-            if (response.conversationId && !conversationId) {
-                setConversationId(response.conversationId);
-            }
             if (response.audioUrl && audioRef.current) {
                 audioRef.current.src = response.audioUrl;
                 audioRef.current.play().catch(e => console.error("Audio playback failed", e));
@@ -499,7 +480,7 @@ const TalkBuddyDisplay = () => {
         } finally {
             setIsLoading(false);
         }
-    }, [user, messages, language, conversationId, toast]);
+    }, [messages, language, toast]);
     
     const handleListen = () => {
         if (!recognitionRef.current) return;
@@ -580,85 +561,6 @@ const TalkBuddyDisplay = () => {
     );
 }
 
-// Component to display user's history of courses and conversations
-const HistoryDisplay = () => {
-    const { user } = useAuth();
-    const [courses, setCourses] = useState<any[]>([]);
-    const [conversations, setConversations] = useState<any[]>([]);
-    const [loading, setLoading] = useState(true);
-
-     useEffect(() => {
-        if (user) {
-            setLoading(true);
-            const coursesQuery = query(collection(db, 'users', user.uid, 'courses'), orderBy('createdAt', 'desc'));
-            const convosQuery = query(collection(db, 'users', user.uid, 'conversations'), orderBy('lastUpdatedAt', 'desc'));
-
-            const unsubCourses = onSnapshot(coursesQuery, (snapshot) => {
-                setCourses(snapshot.docs.map(doc => ({ id: doc.id, ...doc.data() })));
-                if(loading) setLoading(false);
-            }, () => setLoading(false));
-
-            const unsubConvos = onSnapshot(convosQuery, (snapshot) => {
-                setConversations(snapshot.docs.map(doc => ({ id: doc.id, ...doc.data() })));
-                 if(loading) setLoading(false);
-            }, () => setLoading(false));
-
-            return () => {
-                unsubCourses();
-                unsubConvos();
-            };
-        } else {
-            setLoading(false);
-        }
-    }, [user, loading]);
-
-    if (loading) {
-        return <div className="flex items-center justify-center h-64"><Loader2 className="h-8 w-8 animate-spin" /></div>
-    }
-
-    return (
-        <div className="space-y-8 p-4">
-            <Card>
-                <CardHeader>
-                    <CardTitle>Generated Courses</CardTitle>
-                    <CardDescription>Review the courses you have previously generated.</CardDescription>
-                </CardHeader>
-                <CardContent>
-                    {courses.length === 0 ? <p className="text-muted-foreground">No courses generated yet.</p> : (
-                        <ul className="space-y-2">
-                            {courses.map(course => (
-                                <li key={course.id} className="p-3 border rounded-md hover:bg-muted/50">
-                                    <p className="font-semibold">{course.course?.title || "Untitled Course"}</p>
-                                    <p className="text-sm text-muted-foreground">Created on {course.createdAt ? format(new Date(course.createdAt.seconds * 1000), 'PPP') : 'N/A'}</p>
-                                </li>
-                            ))}
-                        </ul>
-                    )}
-                </CardContent>
-            </Card>
-             <Card>
-                <CardHeader>
-                    <CardTitle>Talk Buddy Conversations</CardTitle>
-                    <CardDescription>Review your past conversations with Talk Buddy.</CardDescription>
-                </CardHeader>
-                <CardContent>
-                     {conversations.length === 0 ? <p className="text-muted-foreground">No conversations yet.</p> : (
-                        <ul className="space-y-2">
-                            {conversations.map(convo => (
-                                <li key={convo.id} className="p-3 border rounded-md hover:bg-muted/50">
-                                    <p className="font-semibold">{convo.title}</p>
-                                    <p className="text-sm text-muted-foreground">Last message on {convo.lastUpdatedAt ? format(new Date(convo.lastUpdatedAt.seconds * 1000), 'PPP p') : 'N/A'}</p>
-                                    <p className="text-sm text-muted-foreground mt-1 truncate">{convo.messages?.slice(-1)[0]?.text}</p>
-                                </li>
-                            ))}
-                        </ul>
-                    )}
-                </CardContent>
-            </Card>
-        </div>
-    )
-}
-
 // The main page component that ties everything together
 export default function MyTutorPage() {
     const [activeTab, setActiveTab] = useState('create');
@@ -670,34 +572,12 @@ export default function MyTutorPage() {
 
     return (
         <div className="container mx-auto max-w-6xl py-12 px-4">
-            <Sheet>
-                <div className="text-center mb-10">
-                    <div className="flex justify-center items-center gap-4 mb-2">
-                        <h1 className="text-4xl font-bold tracking-tight font-headline">My AI Tutor</h1>
-                        <SheetTrigger asChild>
-                            <Button variant="outline">
-                                <History className="mr-2"/>
-                                View History
-                            </Button>
-                        </SheetTrigger>
-                    </div>
-                    <p className="text-muted-foreground mt-2 max-w-2xl mx-auto">
-                    Generate a personalized course, chat with your AI buddy, or review your history.
-                    </p>
-                </div>
-                
-                <SheetContent side="top" className="w-full h-3/4 md:h-2/3 md:w-3/4 mx-auto rounded-b-lg">
-                    <SheetHeader>
-                        <SheetTitle>Your Learning History</SheetTitle>
-                        <SheetDescription>
-                            Review your previously generated courses and conversations.
-                        </SheetDescription>
-                    </SheetHeader>
-                    <ScrollArea className="h-[calc(100%-4rem)]">
-                        <HistoryDisplay />
-                    </ScrollArea>
-                </SheetContent>
-            </Sheet>
+            <div className="text-center mb-10">
+                <h1 className="text-4xl font-bold tracking-tight font-headline">My AI Tutor</h1>
+                <p className="text-muted-foreground mt-2 max-w-2xl mx-auto">
+                Generate a personalized course or chat with your AI buddy.
+                </p>
+            </div>
           
            <Tabs value={activeTab} onValueChange={setActiveTab} className="w-full">
             <TabsList className="grid w-full grid-cols-2">

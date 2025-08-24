@@ -10,10 +10,6 @@
 
 import {ai} from '@/ai/genkit';
 import {z} from 'genkit';
-import { getFirestore, doc, setDoc, serverTimestamp, collection } from 'firebase/firestore';
-import { firebaseApp } from '@/lib/firebase';
-
-const db = getFirestore(firebaseApp);
 
 const EssayFeedbackInputSchema = z.object({
   essay: z.string().describe('The essay to provide feedback on.'),
@@ -23,7 +19,6 @@ const EssayFeedbackInputSchema = z.object({
     .describe(
       'The grade level of the student who wrote the essay. e.g., 8th grade'
     ),
-  userId: z.string().describe('The ID of the user submitting the essay.'),
 });
 export type EssayFeedbackInput = z.infer<typeof EssayFeedbackInputSchema>;
 
@@ -36,7 +31,6 @@ const EssayFeedbackOutputSchema = z.object({
   creativityFeedback:
     z.string().describe('Feedback on the creativity of the essay.'),
   overallFeedback: z.string().describe('Overall feedback on the essay.'),
-  essayId: z.string().describe('The ID of the saved essay document.'),
 });
 
 export type EssayFeedbackOutput = z.infer<typeof EssayFeedbackOutputSchema>;
@@ -50,7 +44,7 @@ export async function essayFeedback(
 const prompt = ai.definePrompt({
   name: 'essayFeedbackPrompt',
   input: {schema: EssayFeedbackInputSchema},
-  output: {schema: EssayFeedbackOutputSchema.omit({ essayId: true })},
+  output: {schema: EssayFeedbackOutputSchema},
   prompt: `You are an expert essay feedback provider for students. You will provide feedback on the following aspects of the essay:
 
 - Grammar: Provide feedback on the grammar of the essay.
@@ -71,25 +65,10 @@ const essayFeedbackFlow = ai.defineFlow(
     outputSchema: EssayFeedbackOutputSchema,
   },
   async (input) => {
-    // 1. Get AI feedback
-    const {output: feedback} = await prompt(input);
-    if (!feedback) {
+    const {output} = await prompt(input);
+    if (!output) {
         throw new Error('Failed to get feedback from the AI model.');
     }
-
-    // 2. Save essay and feedback to Firestore
-    const essayDocRef = doc(collection(db, 'users', input.userId, 'essays'));
-    
-    await setDoc(essayDocRef, {
-      ...input,
-      feedback,
-      submittedAt: serverTimestamp(),
-    });
-
-    // 3. Return feedback and the new document ID
-    return {
-        ...feedback,
-        essayId: essayDocRef.id,
-    };
+    return output;
   }
 );

@@ -14,7 +14,6 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@
 import { Textarea } from '@/components/ui/textarea';
 import { Loader2, Sparkles } from 'lucide-react';
 import { Accordion, AccordionContent, AccordionItem, AccordionTrigger } from '@/components/ui/accordion';
-import { useAuth } from '@/hooks/use-auth';
 import { useToast } from '@/hooks/use-toast';
 
 
@@ -28,8 +27,7 @@ type FormData = z.infer<typeof formSchema>;
 
 export default function EssayFeedbackPage() {
   const [loading, setLoading] = useState(false);
-  const [result, setResult] = useState<Omit<EssayFeedbackOutput, 'essayId'> | null>(null);
-  const { user } = useAuth();
+  const [result, setResult] = useState<EssayFeedbackOutput | null>(null);
   const { toast } = useToast();
 
   const form = useForm<FormData>({
@@ -42,16 +40,12 @@ export default function EssayFeedbackPage() {
   });
 
   const onSubmit: SubmitHandler<FormData> = async (data) => {
-    if (!user) {
-        toast({ title: "Authentication Error", description: "You must be logged in to submit an essay.", variant: "destructive" });
-        return;
-    }
     setLoading(true);
     setResult(null);
     try {
-      const response = await essayFeedback({...data, userId: user.uid });
+      const response = await essayFeedback(data);
       setResult(response);
-      toast({ title: "Success!", description: `Your essay has been saved with ID: ${response.essayId}`});
+      toast({ title: "Success!", description: `Your feedback has been generated.`});
     } catch (error) {
       console.error('Failed to get essay feedback:', error);
       toast({ title: "Error", description: "Failed to get essay feedback. Please try again.", variant: "destructive" });
