@@ -192,7 +192,7 @@ const myTutorFlow = ai.defineFlow(
             explanation,
             course,
             relatedResources,
-            imageUrl: imageUrl || null,
+            // Do not save the imageUrl to firestore
             audioUrl: audioUrl || null,
             createdAt: serverTimestamp(),
         });
