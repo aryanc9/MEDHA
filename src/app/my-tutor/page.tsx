@@ -35,6 +35,7 @@ import {
     Lightbulb
 } from 'lucide-react';
 import { myTutor, type MyTutorOutput } from '@/ai/flows/my-tutor';
+import { analyzeReflection } from '@/ai/flows/analyze-reflection';
 import { talkBuddy, type TalkBuddyOutput } from '@/ai/flows/talk-buddy';
 import type { TalkBuddyMessage } from '@/ai/schemas/talk-buddy-schemas';
 import { useAuth } from '@/hooks/use-auth';
@@ -82,6 +83,60 @@ const LessonContentDisplay = ({ content }: { content: string }) => {
         </div>
     )
 }
+
+const ReflectionCard = ({ prompt, courseId }: { prompt: string; courseId: string; }) => {
+    const { user } = useAuth();
+    const { toast } = useToast();
+    const [reflectionText, setReflectionText] = useState('');
+    const [isSubmitting, setIsSubmitting] = useState(false);
+
+    const handleSubmitReflection = async () => {
+        if (!reflectionText.trim() || !user) {
+            toast({ title: "Please write your reflection first.", variant: 'destructive' });
+            return;
+        }
+        setIsSubmitting(true);
+        try {
+            const { feedback, pointsAwarded } = await analyzeReflection({
+                userId: user.uid,
+                reflectionText: reflectionText,
+            });
+            toast({
+                title: `Reflection Submitted! 🎉`,
+                description: `${feedback} You've been awarded ${pointsAwarded} points.`,
+            });
+            setReflectionText('');
+        } catch (error: any) {
+            toast({ title: 'Error Submitting Reflection', description: error.message, variant: 'destructive' });
+        } finally {
+            setIsSubmitting(false);
+        }
+    };
+
+    return (
+        <Card className="bg-blue-900/10 border-blue-500/30">
+            <CardHeader>
+                <CardTitle className="flex items-center gap-2 text-blue-300"><Lightbulb /> Reflection Prompt</CardTitle>
+            </CardHeader>
+            <CardContent>
+                <p className="text-lg text-blue-200/90 mb-4">{prompt}</p>
+                <Textarea 
+                    placeholder="Write your thoughts here..." 
+                    rows={5} 
+                    className="bg-background/50"
+                    value={reflectionText}
+                    onChange={(e) => setReflectionText(e.target.value)}
+                    disabled={isSubmitting}
+                />
+                <Button className="mt-4" onClick={handleSubmitReflection} disabled={isSubmitting}>
+                    {isSubmitting && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
+                    Submit Reflection
+                </Button>
+            </CardContent>
+        </Card>
+    );
+};
+
 
 // Component to display the generated course
 const CourseDisplay = ({ result }: { result: MyTutorOutput; }) => {
@@ -147,16 +202,9 @@ const CourseDisplay = ({ result }: { result: MyTutorOutput; }) => {
                         </Accordion>
                     </TabsContent>
                     <TabsContent value="reflection">
-                        <Card className="bg-blue-900/10 border-blue-500/30">
-                            <CardHeader>
-                                <CardTitle className="flex items-center gap-2 text-blue-300"><Lightbulb /> Reflection Prompt</CardTitle>
-                            </CardHeader>
-                            <CardContent>
-                                <p className="text-lg text-blue-200/90 mb-4">{result.reflectionPrompt}</p>
-                                <Textarea placeholder="Write your thoughts here..." rows={5} className="bg-background/50"/>
-                                <Button className="mt-4">Save Reflection</Button>
-                            </CardContent>
-                        </Card>
+                        {result.reflectionPrompt && result.id && (
+                            <ReflectionCard prompt={result.reflectionPrompt} courseId={result.id} />
+                        )}
                     </TabsContent>
                     <TabsContent value="resources">
                         <div className="space-y-6">

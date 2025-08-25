@@ -2,7 +2,7 @@
 'use client';
 
 import { useEffect, useState } from 'react';
-import { BookOpenCheck, BrainCircuit, Route, Loader2, MessageSquare, ArrowRight, TrendingUp, Lightbulb, Target } from 'lucide-react';
+import { BookOpenCheck, BrainCircuit, Route, Loader2, MessageSquare, ArrowRight, TrendingUp, Lightbulb, Target, Star } from 'lucide-react';
 import { WelcomeHeader } from '@/components/dashboard/WelcomeHeader';
 import { FeatureCard } from '@/components/dashboard/FeatureCard';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle, CardFooter } from '@/components/ui/card';
@@ -38,7 +38,7 @@ export default function DashboardPage() {
         } finally {
           setLoading(false);
         }
-      } else if (!userSettings) {
+      } else if (user && !userSettings) {
          // If there are no settings, don't keep it in a loading state
         setLoading(false);
       }
@@ -58,6 +58,24 @@ export default function DashboardPage() {
       <WelcomeHeader />
 
       <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
+        <Card className="lg:col-span-1">
+            <CardHeader>
+                <CardTitle className="font-headline flex items-center gap-2">
+                    <Star className="h-6 w-6 text-yellow-400" />
+                    <span>Student Score</span>
+                </CardTitle>
+                <CardDescription>
+                    Points earned from metacognitive activities.
+                </CardDescription>
+            </CardHeader>
+            <CardContent>
+                <p className="text-4xl font-bold">{userSettings?.studentScore || 0}</p>
+            </CardContent>
+            <CardFooter>
+                 <p className="text-sm text-muted-foreground">Keep reflecting to earn more!</p>
+            </CardFooter>
+        </Card>
+
         <Card className="lg:col-span-2">
             <CardHeader>
                 <CardTitle className="font-headline flex items-center gap-2">
@@ -75,14 +93,6 @@ export default function DashboardPage() {
                  <p className="text-sm text-muted-foreground">You're off to a great start! Keep going.</p>
             </CardFooter>
         </Card>
-
-        <FeatureCard
-          title="Adaptive Tutor"
-          description="Engage with lessons that adapt to your pace and style."
-          href="/my-tutor"
-          icon={<BrainCircuit className="h-8 w-8 text-primary" />}
-          fullHeight
-        />
       </div>
 
        <div className="grid grid-cols-1">
@@ -120,7 +130,7 @@ export default function DashboardPage() {
                       {learningPath?.reasoning || "Set your learning goal in settings to see your personalized path."}
                   </CardDescription>
                 )}
-            </CardHeader>
+            </Header>
             <CardContent>
                 {loading ? (
                    <div className="flex items-center justify-center h-40">

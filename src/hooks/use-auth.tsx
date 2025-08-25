@@ -26,6 +26,7 @@ const db = getFirestore(firebaseApp);
 // Define a type for user settings
 export interface UserSettings {
     [key: string]: any;
+    studentScore?: number;
 }
 
 
@@ -84,6 +85,7 @@ export const AuthProvider = ({ children }: { children: React.ReactNode }) => {
             displayName: user.displayName,
             email: user.email,
             createdAt: new Date(),
+            studentScore: 0,
         }, { merge: true });
         if (pathname !== '/onboarding') {
             router.push("/onboarding");
@@ -151,6 +153,7 @@ export const AuthProvider = ({ children }: { children: React.ReactNode }) => {
         displayName: fullName,
         email: email,
         createdAt: new Date(),
+        studentScore: 0,
     });
 
     await sendEmailVerification(userCredential.user);
