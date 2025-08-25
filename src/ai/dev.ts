@@ -11,4 +11,3 @@ import '@/ai/flows/essay-feedback-chat.ts';
 import '@/ai/flows/analyze-reflection.ts';
 import '@/ai/flows/quiz-flow.ts';
 import '@/ai/schemas/quiz-schemas.ts';
-import '@/ai/flows/explain-feature.ts';

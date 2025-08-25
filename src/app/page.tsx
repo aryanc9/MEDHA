@@ -3,11 +3,10 @@
 
 import * as React from 'react';
 import Link from 'next/link';
-import { ArrowRight, Zap, Accessibility, BrainCircuit, Loader2 } from 'lucide-react';
+import { ArrowRight, Zap, Accessibility, BrainCircuit } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Card, CardHeader, CardTitle, CardDescription } from '@/components/ui/card';
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription } from '@/components/ui/dialog';
-import { explainFeature } from '@/ai/flows/explain-feature';
 
 function Shape({ className }: { className?: string }) {
   return <div className={className}></div>;
@@ -17,44 +16,59 @@ const features = [
     {
         title: 'Metacognitive Tools',
         description: 'Develop self-awareness with goal setting, reflection prompts, and AI-powered error analysis to understand your mistakes.',
-        icon: <BrainCircuit className="w-8 h-8 text-primary" />
+        icon: <BrainCircuit className="w-8 h-8 text-primary" />,
+        detailedExplanation: `
+            <h3 class="font-bold text-lg mb-2">What it is:</h3>
+            <p>Metacognitive Tools are features designed to help you "think about your thinking." Instead of just learning a topic, you learn *how* you learn it best. This includes setting clear learning goals, reflecting on what you found easy or difficult, and getting AI-driven feedback on your reflections to identify your own learning patterns.</p>
+            <br/>
+            <h3 class="font-bold text-lg mb-2">How it's used:</h3>
+            <p>After completing a lesson or a quiz, the platform will prompt you to write a brief reflection. For example: "What was the most challenging concept in this lesson, and why do you think it was difficult?" Our AI analyzes your reflection not for correctness, but for depth of thought, and awards you points for insightful self-assessment, which improves your student score on the dashboard.</p>
+            <br/>
+            <h3 class="font-bold text-lg mb-2">Benefit to your learning:</h3>
+            <p>This process strengthens your ability to learn independently. You become better at identifying your own knowledge gaps and developing strategies to overcome them, a crucial skill for lifelong learning.</p>
+        `
     },
     {
         title: 'Accessibility First',
         description: 'Learn your way with voice commands, gesture controls, dyslexia-friendly fonts, and focus modes for ADHD.',
-        icon: <Accessibility className="w-8 h-8 text-primary" />
+        icon: <Accessibility className="w-8 h-8 text-primary" />,
+        detailedExplanation: `
+            <h3 class="font-bold text-lg mb-2">What it is:</h3>
+            <p>An "Accessibility First" approach means the platform is built from the ground up to be usable by everyone, regardless of their physical or cognitive abilities. This isn't an afterthought; it's a core part of the design.</p>
+            <br/>
+            <h3 class="font-bold text-lg mb-2">How it's used:</h3>
+            <p>You can interact with the platform using your voice, utilize high-contrast themes, or switch to dyslexia-friendly fonts like OpenDyslexic. The "Talk Buddy" feature allows for conversational learning, and our uncluttered interface helps users with focus-related challenges like ADHD to concentrate on the learning material without distractions.</p>
+            <br/>
+            <h3 class="font-bold text-lg mb-2">Benefit to your learning:</h3>
+            <p>By removing barriers to access, we ensure that the only challenge you face is the subject you're trying to learn. This creates a more inclusive and effective learning environment for all students.</p>
+        `
     },
     {
         title: 'Adaptive Lessons',
         description: 'Experience truly personalized education that adapts in real-time to your pace, style, and learning needs.',
-        icon: <Zap className="w-8 h-8 text-primary" />
+        icon: <Zap className="w-8 h-8 text-primary" />,
+        detailedExplanation: `
+            <h3 class="font-bold text-lg mb-2">What it is:</h3>
+            <p>Adaptive lessons are courses that dynamically change based on your performance and interaction. The AI tutor doesn't follow a rigid, one-size-fits-all curriculum. It monitors your progress and adjusts the content on the fly.</p>
+            <br/>
+            <h3 class="font-bold text-lg mb-2">How it's used:</h3>
+            <p>When you take a quiz at the end of a module, the AI analyzes your answers. If you struggle with a particular concept, the next lesson might include more foundational material on that topic or present it in a different way. If you're excelling, the AI might introduce more advanced concepts sooner or provide more challenging problems to keep you engaged.</p>
+            <br/>
+            <h3 class="font-bold text-lg mb-2">Benefit to your learning:</h3>
+            <p>This personalization ensures you're always learning in your "zone of proximal development"—the sweet spot where content is challenging enough to be interesting but not so difficult that it's frustrating. It makes learning more efficient and effective.</p>
+        `
     }
 ]
 
 export default function HomePage() {
-  const [selectedFeature, setSelectedFeature] = React.useState<{title: string, description: string} | null>(null);
-  const [explanation, setExplanation] = React.useState('');
-  const [isLoading, setIsLoading] = React.useState(false);
+  const [selectedFeature, setSelectedFeature] = React.useState<(typeof features)[0] | null>(null);
 
-  const handleFeatureClick = async (feature: {title: string, description: string}) => {
+  const handleFeatureClick = (feature: (typeof features)[0]) => {
     setSelectedFeature(feature);
-    setIsLoading(true);
-    try {
-        const result = await explainFeature({
-            featureTitle: feature.title,
-            featureDescription: feature.description
-        });
-        setExplanation(result.explanation);
-    } catch(e) {
-        setExplanation('Sorry, I could not fetch the explanation at this time.');
-    } finally {
-        setIsLoading(false);
-    }
   }
 
   const handleCloseDialog = () => {
     setSelectedFeature(null);
-    setExplanation('');
   }
 
   return (
@@ -110,14 +124,7 @@ export default function HomePage() {
                     </DialogDescription>
                 </DialogHeader>
                 <div className="prose prose-sm dark:prose-invert max-w-none max-h-[60vh] overflow-y-auto pr-4 mt-4">
-                    {isLoading ? (
-                        <div className="flex items-center justify-center h-40">
-                            <Loader2 className="w-8 h-8 animate-spin text-primary" />
-                        </div>
-                    ) : (
-                        <div dangerouslySetInnerHTML={{ __html: explanation.replace(/\n/g, '<br />') }} />
-
-                    )}
+                    <div dangerouslySetInnerHTML={{ __html: selectedFeature?.detailedExplanation || "" }} />
                 </div>
             </DialogContent>
         </Dialog>
