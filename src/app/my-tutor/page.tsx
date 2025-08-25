@@ -26,7 +26,6 @@ import {
     ChevronRight,
     BookText,
     Video,
-    Image as ImageIcon,
     MessageSquare,
     Mic,
     Send,
@@ -42,7 +41,6 @@ import { talkBuddy, type TalkBuddyOutput } from '@/ai/flows/talk-buddy';
 import type { TalkBuddyMessage } from '@/ai/schemas/talk-buddy-schemas';
 import { useAuth } from '@/hooks/use-auth';
 import { useToast } from '@/hooks/use-toast';
-import Image from 'next/image';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { ScrollArea } from '@/components/ui/scroll-area';
 import { getFirestore, collection, query, orderBy, onSnapshot } from "firebase/firestore";
@@ -121,11 +119,10 @@ const CourseDisplay = ({ result }: { result: MyTutorOutput; }) => {
             </CardHeader>
             <CardContent>
                 <Tabs defaultValue="course">
-                    <TabsList className="grid w-full grid-cols-4 mb-6">
+                    <TabsList className="grid w-full grid-cols-3 mb-6">
                         <TabsTrigger value="course"><BookText className="mr-2"/> Course Content</TabsTrigger>
                          <TabsTrigger value="reflection" disabled={!result.reflectionPrompt}><Lightbulb className="mr-2"/>Reflection</TabsTrigger>
                         <TabsTrigger value="resources" disabled={!result.relatedResources || result.relatedResources.length === 0}><Video className="mr-2"/>Further Learning</TabsTrigger>
-                        <TabsTrigger value="visual" disabled={!result.imageUrl}><ImageIcon className="mr-2"/>Visual Aid</TabsTrigger>
                     </TabsList>
                     <TabsContent value="course" className="rounded-lg border bg-muted/30 p-2 sm:p-4">
                         <Accordion type="multiple" defaultValue={modules.length > 0 ? ['module-0'] : []} className="w-full">
@@ -220,11 +217,6 @@ const CourseDisplay = ({ result }: { result: MyTutorOutput; }) => {
                                     ))}
                                 </div>
                              )}
-                        </div>
-                    </TabsContent>
-                    <TabsContent value="visual">
-                         <div className="relative aspect-video w-full overflow-hidden rounded-lg border">
-                                {result.imageUrl && <Image src={result.imageUrl} alt="Visual aid for the course" layout="fill" objectFit="cover" />}
                         </div>
                     </TabsContent>
                 </Tabs>
