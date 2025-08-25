@@ -31,12 +31,10 @@ import {
     Volume2,
     User as UserIcon,
     Bot,
-    Accessibility,
     Lightbulb,
     HelpCircle,
     CheckCircle2,
     XCircle,
-    Star
 } from 'lucide-react';
 import { myTutor, type MyTutorOutput } from '@/ai/flows/my-tutor';
 import { analyzeReflection } from '@/ai/flows/analyze-reflection';
@@ -674,9 +672,7 @@ const TalkBuddyDisplay = () => {
         if (!currentMessage || !user) return;
 
         const userMessage: TalkBuddyMessage = { sender: 'user', text: currentMessage };
-        const newMessages = [...messages, userMessage];
-        
-        setMessages(newMessages);
+        setMessages(prev => [...prev, userMessage]);
         setUserInput('');
         setIsLoading(true);
 
@@ -684,7 +680,7 @@ const TalkBuddyDisplay = () => {
             const response: TalkBuddyOutput = await talkBuddy({ 
                 prompt: currentMessage,
                 language,
-                messages: newMessages.map(m => ({ sender: m.sender, text: m.text })), // Pass history without audioUrl
+                messages: [...messages, userMessage].map(m => ({ sender: m.sender, text: m.text })), // Pass history without audioUrl
                 userId: user.uid,
                 conversationId,
             });
@@ -698,9 +694,9 @@ const TalkBuddyDisplay = () => {
                 audioRef.current.src = response.audioUrl;
                 audioRef.current.play().catch(e => console.error("Audio playback failed", e));
             }
-        } catch (error) {
+        } catch (error: any) {
             console.error("Talk Buddy failed:", error);
-            toast({ title: "Error", description: "Talk Buddy failed to respond.", variant: "destructive" });
+            toast({ title: "Error", description: error.message || "Talk Buddy failed to respond.", variant: "destructive" });
             setMessages(messages); // Revert to the state before sending the message
         } finally {
             setIsLoading(false);
@@ -818,6 +814,7 @@ const MyTutorPageContent = () => {
                     const docSnap = await getDoc(courseRef);
                     if (docSnap.exists()) {
                         setResult(docSnap.data() as MyTutorOutput);
+                        setActiveTab('create');
                     } else {
                         toast({ title: 'Course not found', variant: 'destructive' });
                     }
@@ -884,11 +881,5 @@ export default function MyTutorPage() {
         </React.Suspense>
     );
 }
-
-    
-
-    
-
-    
 
     
