@@ -9,32 +9,14 @@
  */
 
 import {ai} from '@/ai/genkit';
-import {z} from 'genkit';
+import {
+    EssayFeedbackInputSchema, 
+    type EssayFeedbackInput, 
+    EssayFeedbackOutputSchema, 
+    type EssayFeedbackOutput
+} from '@/ai/schemas/essay-feedback-schemas';
 
-const EssayFeedbackInputSchema = z.object({
-  essay: z.string().describe('The essay to provide feedback on.'),
-  topic: z.string().describe('The topic of the essay.'),
-  gradeLevel: z
-    .string()
-    .describe(
-      'The grade level of the student who wrote the essay. e.g., 8th grade'
-    ),
-});
-export type EssayFeedbackInput = z.infer<typeof EssayFeedbackInputSchema>;
-
-export const EssayFeedbackOutputSchema = z.object({
-  grammarFeedback: z.string().describe('Feedback on the grammar of the essay.'),
-  coherenceFeedback:
-    z.string().describe('Feedback on the coherence of the essay.'),
-  relevanceFeedback:
-    z.string().describe('Feedback on the relevance of the essay to the topic.'),
-  creativityFeedback:
-    z.string().describe('Feedback on the creativity of the essay.'),
-  overallFeedback: z.string().describe('Overall feedback on the essay.'),
-  highlightedEssay: z.string().describe("The original essay with suggested improvements. Use Markdown's bold (`**text**`) for additions and strikethrough (`~~text~~`) for deletions.")
-});
-
-export type EssayFeedbackOutput = z.infer<typeof EssayFeedbackOutputSchema>;
+export type { EssayFeedbackInput, EssayFeedbackOutput };
 
 export async function essayFeedback(
   input: EssayFeedbackInput

@@ -5,8 +5,9 @@ import { useState } from 'react';
 import { useForm, SubmitHandler } from 'react-hook-form';
 import { zodResolver } from '@hookform/resolvers/zod';
 import * as z from 'zod';
-import { essayFeedback, EssayFeedbackOutput } from '@/ai/flows/essay-feedback';
+import { essayFeedback, type EssayFeedbackOutput } from '@/ai/flows/essay-feedback';
 import { essayFeedbackChat, type EssayFeedbackChatInput } from '@/ai/flows/essay-feedback-chat';
+import type { ChatMessage } from '@/ai/schemas/essay-feedback-schemas';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Form, FormControl, FormField, FormItem, FormLabel, FormMessage } from '@/components/ui/form';
@@ -27,11 +28,6 @@ const formSchema = z.object({
 });
 
 type FormData = z.infer<typeof formSchema>;
-
-interface ChatMessage {
-    sender: 'user' | 'bot';
-    text: string;
-}
 
 const HighlightedEssayDisplay = ({ content }: { content: string }) => {
     const parsedContent = content
@@ -89,7 +85,7 @@ export default function EssayFeedbackPage() {
           const chatInput: EssayFeedbackChatInput = {
               ...form.getValues(),
               initialFeedback: result,
-              chatHistory: newHistory,
+              chatHistory: newHistory.map(m => ({sender: m.sender, text: m.text})),
               query: chatQuery,
           };
           const response = await essayFeedbackChat(chatInput);
