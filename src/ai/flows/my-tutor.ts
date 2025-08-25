@@ -1,10 +1,10 @@
-
 'use server';
 
 /**
  * @fileOverview A comprehensive tutoring agent that creates adaptive courses with metacognitive feedback.
  *
  * - myTutor - A function that handles tutoring requests and saves the output.
+ * - createCourseTitle - A function to create an initial course document with just a title.
  * - MyTutorInput - The input type for the myTutor function.
  * - MyTutorOutput - The return type for the myTutor function.
  */
@@ -12,11 +12,19 @@
 import {ai} from '@/ai/genkit';
 import {z} from 'zod';
 import { toWav } from '@/lib/audio';
-import { getFirestore, doc, setDoc, collection } from "firebase/firestore";
+import { getFirestore, doc, setDoc, collection, updateDoc } from "firebase/firestore";
 import { firebaseApp } from '@/lib/firebase';
 
 const db = getFirestore(firebaseApp);
 
+// Schema for creating just the title
+const CreateCourseTitleInputSchema = z.object({
+    title: z.string().min(1, 'Title cannot be empty.'),
+    userId: z.string(),
+});
+export type CreateCourseTitleInput = z.infer<typeof CreateCourseTitleInputSchema>;
+
+// Input for the main course generation, now including the courseId
 const MyTutorInputSchema = z.object({
   prompt: z.string().describe("The user's question or topic to explain."),
   image: z.string().optional().describe(
@@ -28,6 +36,7 @@ const MyTutorInputSchema = z.object({
   ),
   courseStructure: z.string().optional().describe("A user-defined structure or plan for the course."),
   userId: z.string().describe("The user's unique ID to save history."),
+  courseId: z.string().describe("The ID of the course document to update."),
 });
 export type MyTutorInput = z.infer<typeof MyTutorInputSchema>;
 
@@ -83,13 +92,29 @@ const PromptOutputSchema = MyTutorOutputSchema.omit({
 });
 
 
+export async function createCourseTitle(input: CreateCourseTitleInput): Promise<{ courseId: string, createdAt: string }> {
+    const courseId = doc(collection(db, `users/${input.userId}/courses`)).id;
+    const courseDocRef = doc(db, `users/${input.userId}/courses/${courseId}`);
+    const createdAt = new Date().toISOString();
+
+    await setDoc(courseDocRef, {
+        id: courseId,
+        title: input.title,
+        createdAt: createdAt,
+        status: 'pending', // A status to indicate content is not yet generated
+    });
+
+    return { courseId, createdAt };
+}
+
+
 export async function myTutor(input: MyTutorInput): Promise<MyTutorOutput> {
   return myTutorFlow(input);
 }
 
 const tutorPrompt = ai.definePrompt({
     name: 'tutorPrompt',
-    input: { schema: MyTutorInputSchema.omit({ userId: true }) },
+    input: { schema: MyTutorInputSchema.omit({ userId: true, courseId: true }) },
     output: { schema: PromptOutputSchema },
     prompt: `You are an expert AI course creator and a metacognitive learning coach. Your goal is to generate a comprehensive, well-structured course and to help the student learn how to learn.
 
@@ -140,7 +165,7 @@ const myTutorFlow = ai.defineFlow(
     outputSchema: MyTutorOutputSchema,
   },
   async (input) => {
-    // Step 1: Generate the core text content and decide on the visual aid strategy.
+    // Step 1: Generate the core text content.
     const llmResponse = await tutorPrompt(input);
     
     if (!llmResponse.output) {
@@ -199,15 +224,14 @@ const myTutorFlow = ai.defineFlow(
       prompt: input.prompt,
     };
     
-    // Step 4: Save the complete result to Firestore.
+    // Step 4: Update the existing document in Firestore.
     try {
-        const courseId = doc(collection(db, `users/${input.userId}/courses`)).id;
-        const courseDocRef = doc(db, `users/${input.userId}/courses/${courseId}`);
+        const courseDocRef = doc(db, `users/${input.userId}/courses/${input.courseId}`);
 
-        const historyData = {
+        const historyData: Partial<MyTutorOutput> & { status: string; updatedAt: string } = {
             ...finalResult,
-            id: courseId,
-            createdAt: new Date().toISOString(),
+            status: 'completed',
+            updatedAt: new Date().toISOString(),
         };
 
          if (historyData.audioUrl && historyData.audioUrl.length > 1048487) {
@@ -215,11 +239,11 @@ const myTutorFlow = ai.defineFlow(
             historyData.audioUrl = undefined;
         }
 
-        await setDoc(courseDocRef, historyData);
+        await updateDoc(courseDocRef, historyData as { [x: string]: any });
 
         // Attach the ID and timestamp to the object returned to the client.
-        finalResult.id = courseId;
-        finalResult.createdAt = historyData.createdAt;
+        finalResult.id = input.courseId;
+        finalResult.createdAt = new Date().toISOString();
 
     } catch(error) {
         console.error("Failed to save course history:", error);
@@ -229,5 +253,3 @@ const myTutorFlow = ai.defineFlow(
     return finalResult;
   }
 );
-
-    

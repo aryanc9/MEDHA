@@ -34,9 +34,10 @@ import {
     Bot,
     History,
     Accessibility,
-    Lightbulb
+    Lightbulb,
+    PlusCircle
 } from 'lucide-react';
-import { myTutor, type MyTutorOutput } from '@/ai/flows/my-tutor';
+import { myTutor, createCourseTitle, type MyTutorOutput } from '@/ai/flows/my-tutor';
 import { talkBuddy, type TalkBuddyOutput } from '@/ai/flows/talk-buddy';
 import type { TalkBuddyMessage } from '@/ai/schemas/talk-buddy-schemas';
 import { useAuth } from '@/hooks/use-auth';
@@ -227,14 +228,14 @@ const CourseDisplay = ({ result }: { result: MyTutorOutput; }) => {
 
 // Component for the course creation form
 const CourseCreationForm = ({
+    activeCourse,
     onCourseCreate,
-    initialTopic = '',
 }:{
+    activeCourse: { id: string; title: string },
     onCourseCreate: (output: MyTutorOutput) => void;
-    initialTopic?: string;
 }) => {
     const { user } = useAuth();
-    const [topic, setTopic] = useState(initialTopic);
+    const [topic, setTopic] = useState(activeCourse.title);
     const [isResearchMode, setIsResearchMode] = useState(false);
     const [useOwnSources, setUseOwnSources] = useState(false);
     const [defineStructure, setDefineStructure] = useState(false);
@@ -243,11 +244,6 @@ const CourseCreationForm = ({
     const [courseStructure, setCourseStructure] = useState('');
     const [isGenerating, setIsGenerating] = useState(false);
     const { toast } = useToast();
-    
-    // Effect to update topic if initialTopic changes
-    useEffect(() => {
-        setTopic(initialTopic);
-    }, [initialTopic]);
 
     const handleFileChange = (e: React.ChangeEvent<HTMLInputElement>) => {
         const file = e.target.files?.[0];
@@ -283,6 +279,7 @@ const CourseCreationForm = ({
                 sourceFile: useOwnSources ? sourceFile ?? undefined : undefined,
                 courseStructure: defineStructure ? courseStructure : undefined,
                 userId: user.uid,
+                courseId: activeCourse.id,
             });
             onCourseCreate(response);
             toast({ title: "Success!", description: "Your course has been generated and saved." });
@@ -301,8 +298,10 @@ const CourseCreationForm = ({
             <form onSubmit={handleCreateCourse} className="space-y-8 mt-6">
                 <Card>
                   <CardHeader>
-                    <CardTitle className="flex items-center gap-2"><Sparkles className="text-primary"/> 1. Define Your Topic</CardTitle>
-                    <CardDescription>What would you like to learn about today?</CardDescription>
+                    <CardTitle className="flex items-center gap-2"><Sparkles className="text-primary"/> Define Your Topic</CardTitle>
+                     <CardDescription>
+                        Course Title: <span className="font-semibold text-foreground">{activeCourse.title}</span>
+                    </CardDescription>
                   </CardHeader>
                   <CardContent>
                     <div className="relative">
@@ -323,7 +322,7 @@ const CourseCreationForm = ({
                 
                 <Card>
                     <CardHeader>
-                        <CardTitle className="flex items-center gap-2"><BrainCircuit className="text-primary"/> 2. Customize Your Learning</CardTitle>
+                        <CardTitle className="flex items-center gap-2"><BrainCircuit className="text-primary"/> Customize Your Learning</CardTitle>
                         <CardDescription>Refine how the AI generates your course content.</CardDescription>
                     </CardHeader>
                     <CardContent className="grid md:grid-cols-2 lg:grid-cols-3 gap-6">
@@ -422,6 +421,53 @@ const CourseCreationForm = ({
         </>
     );
 };
+
+// Component to start a new course
+const StartCourse = ({ onCourseStart }: { onCourseStart: (course: {id: string, title: string, createdAt: string}) => void }) => {
+    const { user } = useAuth();
+    const { toast } = useToast();
+    const [title, setTitle] = useState('');
+    const [isCreating, setIsCreating] = useState(false);
+
+    const handleCreateTitle = async (e: React.FormEvent) => {
+        e.preventDefault();
+        if (!title.trim() || !user) return;
+        setIsCreating(true);
+        try {
+            const { courseId, createdAt } = await createCourseTitle({ title, userId: user.uid });
+            toast({ title: "Course Created!", description: "Now, let's define the topic." });
+            onCourseStart({ id: courseId, title, createdAt });
+        } catch (error: any) {
+            console.error("Failed to create course title:", error);
+            toast({ title: "Error", description: error.message || "Could not create the course.", variant: "destructive" });
+        } finally {
+            setIsCreating(false);
+        }
+    };
+
+    return (
+        <Card className="max-w-xl mx-auto mt-10">
+            <CardHeader>
+                <CardTitle>Create a New Course</CardTitle>
+                <CardDescription>Give your new course a title to begin. It will be saved to your history so you can continue later.</CardDescription>
+            </CardHeader>
+            <CardContent>
+                <form onSubmit={handleCreateTitle} className="flex items-center gap-2">
+                    <Input
+                        value={title}
+                        onChange={(e) => setTitle(e.target.value)}
+                        placeholder="e.g., 'Introduction to Astrophysics'"
+                        disabled={isCreating}
+                    />
+                    <Button type="submit" disabled={isCreating || !title.trim()}>
+                        {isCreating ? <Loader2 className="animate-spin" /> : "Start"}
+                    </Button>
+                </form>
+            </CardContent>
+        </Card>
+    );
+};
+
 
 // Component for the Talk Buddy chat interface
 const TalkBuddyDisplay = ({ loadConversation }: { loadConversation: (messages: TalkBuddyMessage[], language: string, id: string) => void; }) => {
@@ -610,9 +656,10 @@ const TalkBuddyDisplay = ({ loadConversation }: { loadConversation: (messages: T
     );
 }
 
-const HistoryDisplay = ({ onCourseSelect, onConversationSelect }: {
+const HistoryDisplay = ({ onCourseSelect, onConversationSelect, onNewCourse }: {
     onCourseSelect: (course: MyTutorOutput) => void;
     onConversationSelect: (messages: TalkBuddyMessage[], language: string, id: string) => void;
+    onNewCourse: () => void;
 }) => {
     const { user } = useAuth();
     const [courses, setCourses] = useState<MyTutorOutput[]>([]);
@@ -655,14 +702,17 @@ const HistoryDisplay = ({ onCourseSelect, onConversationSelect }: {
                 <TabsTrigger value="chats"><MessageSquare className="mr-2"/>Chats</TabsTrigger>
             </TabsList>
             <TabsContent value="courses">
-                <ScrollArea className="h-[calc(100vh-150px)]">
+                <div className="p-2">
+                    <Button onClick={onNewCourse} className="w-full" variant="outline"><PlusCircle className="mr-2"/> Start a New Course</Button>
+                </div>
+                <ScrollArea className="h-[calc(100vh-200px)]">
                     <div className="space-y-4 p-4">
                         {loading && <div className="flex justify-center p-4"><Loader2 className="mx-auto animate-spin" /></div>}
                         {!loading && courses.length === 0 && <p className="text-center text-muted-foreground py-4">No course history found.</p>}
                         {courses.map((course) => (
                             <Button key={course.id} variant="ghost" className="w-full justify-start h-auto p-3" onClick={() => onCourseSelect(course)}>
                                 <div className="text-left w-full">
-                                    <p className="font-semibold truncate">{course.course?.title || course.prompt || 'Untitled Course'}</p>
+                                    <p className="font-semibold truncate">{course.course?.title || course.prompt || course.title ||'Untitled Course'}</p>
                                     <p className="text-xs text-muted-foreground">{new Date(course.createdAt as string).toLocaleString()}</p>
                                 </div>
                             </Button>
@@ -697,6 +747,7 @@ const MyTutorPageContent = () => {
 
     const [activeTab, setActiveTab] = useState(initialTab);
     const [result, setResult] = useState<MyTutorOutput | null>(null);
+    const [activeCourse, setActiveCourse] = useState<{ id: string, title: string } | null>(null);
     const [isSheetOpen, setIsSheetOpen] = useState(false);
     
     const talkBuddyLoadConversationRef = useRef<((messages: TalkBuddyMessage[], language: string, id: string) => void) | null>(null);
@@ -704,16 +755,35 @@ const MyTutorPageContent = () => {
     // When the tab or topic changes from URL, update the state
     useEffect(() => {
         setActiveTab(initialTab);
-    }, [initialTab]);
+        if (initialTopic && !activeCourse) {
+            // This could be enhanced to auto-create a course
+        }
+    }, [initialTab, initialTopic, activeCourse]);
     
     const handleCourseCreated = (output: MyTutorOutput) => {
         setResult(output);
     };
     
     const handleCourseSelectFromHistory = (course: MyTutorOutput) => {
-        setResult(course);
+        if (course.status === 'pending') {
+            setActiveCourse({ id: course.id!, title: course.title! });
+            setResult(null);
+        } else {
+            setResult(course);
+            setActiveCourse({ id: course.id!, title: course.course?.title || course.prompt || course.title! });
+        }
         setActiveTab('create');
         setIsSheetOpen(false); // Close the history sheet
+    }
+
+    const handleNewCourse = () => {
+        setActiveCourse(null);
+        setResult(null);
+        setIsSheetOpen(false);
+    }
+    
+    const handleCourseStart = (course: {id: string, title: string, createdAt: string}) => {
+        setActiveCourse(course);
     }
 
     const handleConversationSelectFromHistory = (messages: TalkBuddyMessage[], language: string, id: string) => {
@@ -727,6 +797,18 @@ const MyTutorPageContent = () => {
     const setTalkBuddyLoadConversation = useCallback((loader: (messages: TalkBuddyMessage[], language: string, id: string) => void) => {
         talkBuddyLoadConversationRef.current = loader;
     }, []);
+
+    const renderCreateContent = () => {
+        if (activeCourse) {
+            return (
+                <>
+                    <CourseCreationForm onCourseCreate={handleCourseCreated} activeCourse={activeCourse} />
+                    {result?.course && <CourseDisplay result={result} />}
+                </>
+            );
+        }
+        return <StartCourse onCourseStart={handleCourseStart} />;
+    }
 
     return (
         <div className="container mx-auto max-w-6xl py-12 px-4">
@@ -748,6 +830,7 @@ const MyTutorPageContent = () => {
                         <HistoryDisplay 
                             onCourseSelect={handleCourseSelectFromHistory}
                             onConversationSelect={handleConversationSelectFromHistory}
+                            onNewCourse={handleNewCourse}
                         />
                     </SheetContent>
                 </Sheet>
@@ -759,8 +842,7 @@ const MyTutorPageContent = () => {
               <TabsTrigger value="buddy"><Accessibility className="mr-2"/> Voice Tutor</TabsTrigger>
             </TabsList>
             <TabsContent value="create">
-                 <CourseCreationForm onCourseCreate={handleCourseCreated} initialTopic={initialTopic} />
-                 {result?.course && <CourseDisplay result={result} />}
+                 {renderCreateContent()}
             </TabsContent>
             <TabsContent value="buddy">
                 <TalkBuddyDisplay loadConversation={setTalkBuddyLoadConversation as any} />
@@ -778,5 +860,3 @@ export default function MyTutorPage() {
         </React.Suspense>
     );
 }
-
-    
