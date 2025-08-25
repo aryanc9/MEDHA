@@ -9,3 +9,5 @@ import '@/ai/schemas/talk-buddy-schemas.ts';
 import '@/ai/schemas/reflection-schemas.ts';
 import '@/ai/flows/essay-feedback-chat.ts';
 import '@/ai/flows/analyze-reflection.ts';
+import '@/ai/flows/quiz-flow.ts';
+import '@/ai/schemas/quiz-schemas.ts';

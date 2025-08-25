@@ -32,7 +32,11 @@ import {
     User as UserIcon,
     Bot,
     Accessibility,
-    Lightbulb
+    Lightbulb,
+    HelpCircle,
+    CheckCircle2,
+    XCircle,
+    Star
 } from 'lucide-react';
 import { myTutor, type MyTutorOutput } from '@/ai/flows/my-tutor';
 import { analyzeReflection } from '@/ai/flows/analyze-reflection';
@@ -43,6 +47,10 @@ import { useToast } from '@/hooks/use-toast';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { ScrollArea } from '@/components/ui/scroll-area';
 import { useSearchParams } from 'next/navigation';
+import { generateQuiz, type GenerateQuizOutput, gradeQuiz, type GradeQuizOutput } from '@/ai/flows/quiz-flow';
+import type { QuizQuestion } from '@/ai/schemas/quiz-schemas';
+import { RadioGroup, RadioGroupItem } from '@/components/ui/radio-group';
+import { cn } from '@/lib/utils';
 
 // Reusable Icon component for different resource types
 const ResourceIcon = ({ type }: { type: string }) => {
@@ -137,6 +145,127 @@ const ReflectionCard = ({ prompt, courseId }: { prompt: string; courseId: string
     );
 };
 
+const QuizDisplay = ({ courseContent }: { courseContent: string }) => {
+    const { user } = useAuth();
+    const { toast } = useToast();
+    const [quiz, setQuiz] = useState<QuizQuestion[] | null>(null);
+    const [isLoading, setIsLoading] = useState(true);
+    const [userAnswers, setUserAnswers] = useState<{[key: number]: string}>({});
+    const [isGrading, setIsGrading] = useState(false);
+    const [gradeResult, setGradeResult] = useState<GradeQuizOutput | null>(null);
+
+    useEffect(() => {
+        const fetchQuiz = async () => {
+            setIsLoading(true);
+            try {
+                const { questions } = await generateQuiz({ courseContent });
+                setQuiz(questions);
+            } catch (error: any) {
+                toast({ title: "Failed to generate quiz", description: error.message, variant: "destructive" });
+            } finally {
+                setIsLoading(false);
+            }
+        };
+        fetchQuiz();
+    }, [courseContent, toast]);
+
+    const handleAnswerChange = (questionIndex: number, answer: string) => {
+        setUserAnswers(prev => ({ ...prev, [questionIndex]: answer }));
+    };
+
+    const handleSubmitQuiz = async () => {
+        if (!quiz || !user) return;
+        if (Object.keys(userAnswers).length !== quiz.length) {
+            toast({ title: "Please answer all questions before submitting.", variant: "destructive" });
+            return;
+        }
+
+        setIsGrading(true);
+        setGradeResult(null);
+        try {
+            const formattedAnswers = quiz.map((q, i) => ({
+                question: q.question,
+                selectedAnswer: userAnswers[i],
+            }));
+            const result = await gradeQuiz({ userId: user.uid, questions: quiz, userAnswers: formattedAnswers });
+            setGradeResult(result);
+             toast({ title: "Quiz Graded!", description: `You scored ${result.score}% and earned ${result.pointsAwarded} points!` });
+        } catch (error: any) {
+            toast({ title: "Failed to grade quiz", description: error.message, variant: "destructive" });
+        } finally {
+            setIsGrading(false);
+        }
+    };
+    
+    if (isLoading) {
+        return (
+            <div className="flex flex-col items-center justify-center text-center p-8 border rounded-lg">
+                <Loader2 className="h-8 w-8 animate-spin text-primary mb-4" />
+                <p className="text-muted-foreground">Generating your quiz...</p>
+            </div>
+        )
+    }
+
+    if (!quiz) {
+         return <p className="text-muted-foreground text-center p-8 border rounded-lg">Could not load the quiz. Please try again later.</p>;
+    }
+    
+     if (gradeResult) {
+        return (
+            <div className="space-y-6">
+                <Card>
+                    <CardHeader>
+                        <CardTitle>Quiz Results</CardTitle>
+                        <CardDescription>You scored {gradeResult.score}% and earned {gradeResult.pointsAwarded} points!</CardDescription>
+                    </CardHeader>
+                    <CardContent>
+                        {gradeResult.feedback.map((item, index) => (
+                            <div key={index} className={cn("p-4 mb-4 rounded-lg border", item.isCorrect ? "border-green-500/50 bg-green-500/10" : "border-red-500/50 bg-red-500/10")}>
+                                <p className="font-bold flex items-center gap-2">
+                                     {item.isCorrect ? <CheckCircle2 className="text-green-500"/> : <XCircle className="text-red-500"/>}
+                                    {item.question}
+                                </p>
+                                <p className="text-sm mt-2">Your answer: <span className={cn(!item.isCorrect && "line-through")}>{item.userAnswer}</span></p>
+                                {!item.isCorrect && <p className="text-sm">Correct answer: {item.correctAnswer}</p>}
+                                <p className="text-sm mt-2 text-muted-foreground italic">{item.explanation}</p>
+                            </div>
+                        ))}
+                    </CardContent>
+                </Card>
+            </div>
+        )
+    }
+
+
+    return (
+        <div className="space-y-8">
+            {quiz.map((q, index) => (
+                <Card key={index}>
+                    <CardHeader>
+                        <CardTitle className="flex items-start gap-3">
+                           <HelpCircle className="h-6 w-6 text-primary mt-1 flex-shrink-0" /> 
+                           <span>{q.question}</span>
+                        </CardTitle>
+                    </CardHeader>
+                    <CardContent>
+                        <RadioGroup onValueChange={(value) => handleAnswerChange(index, value)}>
+                            {q.options.map((option, i) => (
+                                <div key={i} className="flex items-center space-x-2">
+                                    <RadioGroupItem value={option} id={`q${index}-o${i}`} />
+                                    <Label htmlFor={`q${index}-o${i}`}>{option}</Label>
+                                </div>
+                            ))}
+                        </RadioGroup>
+                    </CardContent>
+                </Card>
+            ))}
+            <Button onClick={handleSubmitQuiz} disabled={isGrading} size="lg">
+                {isGrading ? <><Loader2 className="mr-2 h-4 w-4 animate-spin" />Grading...</> : 'Submit Quiz'}
+            </Button>
+        </div>
+    )
+};
+
 
 // Component to display the generated course
 const CourseDisplay = ({ result }: { result: MyTutorOutput; }) => {
@@ -149,6 +278,19 @@ const CourseDisplay = ({ result }: { result: MyTutorOutput; }) => {
     const { title, overview, modules } = result.course;
     const videoResources = result.relatedResources?.filter(r => r.type === 'video' && r.videoId) || [];
     const otherResources = result.relatedResources?.filter(r => r.type !== 'video') || [];
+
+    const getFullCourseContent = () => {
+        if (!result.course) return '';
+        let content = `${result.course.title}\n${result.course.overview}\n\n`;
+        result.course.modules.forEach(module => {
+            content += `Module: ${module.title}\n`;
+            module.lessons.forEach(lesson => {
+                content += `Lesson: ${lesson.title}\n${lesson.content}\n\n`;
+            });
+        });
+        return content;
+    };
+
 
     return (
         <Card className="mt-10">
@@ -168,9 +310,10 @@ const CourseDisplay = ({ result }: { result: MyTutorOutput; }) => {
             </CardHeader>
             <CardContent>
                 <Tabs defaultValue="course">
-                    <TabsList className="grid w-full grid-cols-3 mb-6">
+                    <TabsList className="grid w-full grid-cols-4 mb-6">
                         <TabsTrigger value="course"><BookText className="mr-2"/> Course Content</TabsTrigger>
-                         <TabsTrigger value="reflection" disabled={!result.reflectionPrompt}><Lightbulb className="mr-2"/>Reflection</TabsTrigger>
+                        <TabsTrigger value="quiz"><HelpCircle className="mr-2"/>Take Quiz</TabsTrigger>
+                        <TabsTrigger value="reflection" disabled={!result.reflectionPrompt}><Lightbulb className="mr-2"/>Reflection</TabsTrigger>
                         <TabsTrigger value="resources" disabled={!result.relatedResources || result.relatedResources.length === 0}><Video className="mr-2"/>Further Learning</TabsTrigger>
                     </TabsList>
                     <TabsContent value="course" className="rounded-lg border bg-muted/30 p-2 sm:p-4">
@@ -200,6 +343,9 @@ const CourseDisplay = ({ result }: { result: MyTutorOutput; }) => {
                                 </AccordionItem>
                             ))}
                         </Accordion>
+                    </TabsContent>
+                    <TabsContent value="quiz">
+                        <QuizDisplay courseContent={getFullCourseContent()} />
                     </TabsContent>
                     <TabsContent value="reflection">
                         {result.reflectionPrompt && result.id && (
@@ -691,5 +837,3 @@ export default function MyTutorPage() {
         </React.Suspense>
     );
 }
-
-    
