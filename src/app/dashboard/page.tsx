@@ -1,53 +1,92 @@
 
 'use client';
 
-import { useEffect, useState } from 'react';
-import { BookOpenCheck, BrainCircuit, Route, Loader2, MessageSquare, ArrowRight, TrendingUp, Lightbulb, Target, Star } from 'lucide-react';
+import { useState, useEffect } from 'react';
+import { BookOpenCheck, BrainCircuit, Loader2, TrendingUp, Target, Star } from 'lucide-react';
 import { WelcomeHeader } from '@/components/dashboard/WelcomeHeader';
 import { FeatureCard } from '@/components/dashboard/FeatureCard';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle, CardFooter } from '@/components/ui/card';
 import { useAuth } from '@/hooks/use-auth';
-import { getPersonalizedLearningPath, PersonalizedLearningPathOutput } from '@/ai/flows/personalized-learning-paths';
-import Link from 'next/link';
+import { analyzeReflection } from '@/ai/flows/analyze-reflection';
 import { Button } from '@/components/ui/button';
 import { Progress } from '@/components/ui/progress';
+import { useToast } from '@/hooks/use-toast';
+import { Textarea } from '@/components/ui/textarea';
+
+const ReflectionCard = () => {
+    const { user } = useAuth();
+    const { toast } = useToast();
+    const [reflectionText, setReflectionText] = useState('');
+    const [isSubmitting, setIsSubmitting] = useState(false);
+    const [feedback, setFeedback] = useState('');
+
+    const handleSubmitReflection = async () => {
+        if (!reflectionText.trim() || !user) {
+            toast({ title: "Please write your reflection first.", variant: 'destructive' });
+            return;
+        }
+        setIsSubmitting(true);
+        setFeedback('');
+        try {
+            const { feedback, pointsAwarded } = await analyzeReflection({
+                userId: user.uid,
+                reflectionText: reflectionText,
+            });
+            setFeedback(`${feedback} You've been awarded ${pointsAwarded} points.`);
+             toast({
+                title: `Reflection Submitted! 🎉`,
+                description: `You've been awarded ${pointsAwarded} points.`,
+            });
+            setReflectionText('');
+        } catch (error: any) {
+            toast({ title: 'Error Submitting Reflection', description: error.message, variant: 'destructive' });
+        } finally {
+            setIsSubmitting(false);
+        }
+    };
+
+    return (
+        <Card>
+            <CardHeader>
+                <CardTitle className="font-headline flex items-center gap-2">
+                    <TrendingUp className="h-6 w-6 text-primary" />
+                    <span>Learning Insights & Reflections</span>
+                </CardTitle>
+                <CardDescription>
+                    Reflect on what you've learned to solidify your knowledge and earn points. What was challenging? What clicked?
+                </CardDescription>
+            </CardHeader>
+            <CardContent>
+                <div className="grid gap-4">
+                    <Textarea 
+                        placeholder="e.g., I finally understood how async/await works in Javascript by comparing it to making a sandwich..." 
+                        rows={5}
+                        value={reflectionText}
+                        onChange={(e) => setReflectionText(e.target.value)}
+                        disabled={isSubmitting}
+                    />
+                    <div className="flex justify-end">
+                        <Button onClick={handleSubmitReflection} disabled={isSubmitting}>
+                            {isSubmitting && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
+                            Submit Reflection
+                        </Button>
+                    </div>
+                     {feedback && (
+                        <div className="p-4 bg-muted/50 border rounded-lg text-sm text-muted-foreground">
+                            <p className="font-semibold text-foreground mb-2">AI Feedback:</p>
+                            {feedback}
+                        </div>
+                    )}
+                </div>
+            </CardContent>
+        </Card>
+    )
+}
+
 
 export default function DashboardPage() {
   const { user, userSettings } = useAuth();
-  const [learningPath, setLearningPath] = useState<PersonalizedLearningPathOutput | null>(null);
-  const [loading, setLoading] = useState(true);
-
-  useEffect(() => {
-    async function fetchLearningPath() {
-      if (!user || !userSettings) {
-        setLoading(false);
-        return;
-      }
-
-      setLoading(true);
-      try {
-        const path = await getPersonalizedLearningPath({
-          studentId: user.uid,
-          performanceData: userSettings.performanceData || {},
-          careerPath: userSettings.careerPath || 'Software Engineer',
-          academicLevel: userSettings.academicLevel || 'Undergraduate',
-        });
-        setLearningPath(path);
-      } catch (error) {
-        console.error("Failed to fetch learning path:", error);
-        setLearningPath({
-          reasoning: "Could not load your personalized learning path. Please try again later.",
-          moduleRecommendations: [],
-        });
-      } finally {
-        setLoading(false);
-      }
-    }
-
-    fetchLearningPath();
-  }, [user, userSettings]);
-
-
+  
   return (
     <div className="flex flex-col w-full p-4 md:p-8 gap-8">
       <WelcomeHeader />
@@ -91,64 +130,22 @@ export default function DashboardPage() {
       </div>
 
        <div className="grid grid-cols-1">
-        <Card>
-            <CardHeader>
-                <CardTitle className="font-headline flex items-center gap-2">
-                    <TrendingUp className="h-6 w-6 text-primary" />
-                    <span>Learning Insights & Reflections</span>
-                </CardTitle>
-                <CardDescription>
-                      Review your performance, analyze mistakes, and get prompts to reflect on your learning strategies.
-                  </CardDescription>
-            </CardHeader>
-            <CardContent>
-                <div className="p-8 text-center text-muted-foreground border-2 border-dashed rounded-lg">
-                    <Lightbulb className="h-10 w-10 mx-auto mb-4" />
-                    <p>Your learning insights will appear here after you complete a few lessons.</p>
-                    <p className="text-sm">This is where the AI will help you analyze your learning patterns.</p>
-                </div>
-            </CardContent>
-        </Card>
+            <ReflectionCard />
       </div>
 
-      <div className="grid grid-cols-1">
-        <Card>
-            <CardHeader>
-                <CardTitle className="font-headline flex items-center gap-2">
-                    <Route className="h-6 w-6 text-primary" />
-                    <span>Your Recommended Path</span>
-                </CardTitle>
-                {loading ? (
-                  <CardDescription>Loading your personalized recommendations...</CardDescription>
-                ) : (
-                  <CardDescription>
-                      {learningPath?.reasoning || "Set your learning goal in settings to see your personalized path."}
-                  </CardDescription>
-                )}
-            </Header>
-            <CardContent>
-                {loading ? (
-                   <div className="flex items-center justify-center h-40">
-                     <Loader2 className="h-8 w-8 animate-spin text-primary" />
-                   </div>
-                ) : (
-                  <ul className="space-y-3">
-                      {learningPath?.moduleRecommendations && learningPath.moduleRecommendations.length > 0 ? learningPath.moduleRecommendations.map((module, index) => (
-                          <li key={index}>
-                            <Button asChild variant="ghost" className="w-full justify-start h-auto p-3 bg-muted/50 rounded-md group">
-                                <Link href={`/my-tutor?topic=${encodeURIComponent(module)}`}>
-                                  <span className="font-medium text-muted-foreground mr-3">{index + 1}.</span>
-                                  <span className="font-medium flex-1 text-left">{module}</span>
-                                  <ArrowRight className="h-4 w-4 text-muted-foreground transition-transform group-hover:translate-x-1"/>
-                                </Link>
-                            </Button>
-                          </li>
-                      )) : <p className="text-muted-foreground">No learning path recommendations available yet.</p>}
-                  </ul>
-                )}
-            </CardContent>
-        </Card>
+      <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+        <FeatureCard
+          title="Adaptive AI Tutor"
+          description="Generate a personalized course on any topic, complete with lessons, resources, and voice-enabled chat."
+          href="/my-tutor"
+          icon={<BrainCircuit className="h-10 w-10 text-primary" />}
+        />
+        <FeatureCard
+          title="Essay Feedback"
+          description="Get instant, detailed feedback on your essays for grammar, coherence, and creativity."
+          href="/essay-feedback"
+          icon={<BookOpenCheck className="h-10 w-10 text-primary" />}
+        />
       </div>
     </div>
   );
-}
