@@ -9,7 +9,7 @@ import {
     LogOut, 
     PenSquare,
     Settings,
-    Accessibility,
+    MessageSquare,
     Lightbulb
 } from "lucide-react"
 import { useAuth } from "@/hooks/use-auth"
@@ -92,6 +92,18 @@ export function SidebarNav() {
               <Link href="/essay-feedback">
                 <FileText />
                 <span>Essay Feedback</span>
+              </Link>
+            </SidebarMenuButton>
+          </SidebarMenuItem>
+          <SidebarMenuItem>
+            <SidebarMenuButton
+              asChild
+              isActive={pathname.includes("buddy")}
+              tooltip={{ children: "Chat Buddy" }}
+            >
+              <Link href="/my-tutor?tab=buddy">
+                <MessageSquare />
+                <span>Chat Buddy</span>
               </Link>
             </SidebarMenuButton>
           </SidebarMenuItem>

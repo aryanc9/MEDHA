@@ -723,7 +723,7 @@ const TalkBuddyDisplay = () => {
             <CardHeader>
                 <div className="flex justify-between items-center">
                     <div>
-                        <CardTitle className="flex items-center gap-2"><Accessibility /> Voice-Enabled Tutor</CardTitle>
+                        <CardTitle className="flex items-center gap-2"><MessageSquare /> Chat Buddy</CardTitle>
                         <CardDescription>Practice, ask questions, and learn through conversation.</CardDescription>
                     </div>
                 </div>
@@ -854,7 +854,7 @@ const MyTutorPageContent = () => {
            <Tabs value={activeTab} onValueChange={setActiveTab} className="w-full">
             <TabsList className="grid w-full grid-cols-2">
               <TabsTrigger value="create"><BookCopy className="mr-2"/> Create Course</TabsTrigger>
-              <TabsTrigger value="buddy"><Accessibility className="mr-2"/> Voice Tutor</TabsTrigger>
+              <TabsTrigger value="buddy"><MessageSquare className="mr-2"/> Chat Buddy</TabsTrigger>
             </TabsList>
             <TabsContent value="create">
                  <CourseCreationForm onCourseCreate={handleCourseCreated} initialTopic={initialTopic} />
