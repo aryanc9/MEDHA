@@ -51,6 +51,10 @@ import { generateQuiz, type GenerateQuizOutput, gradeQuiz, type GradeQuizOutput 
 import type { QuizQuestion } from '@/ai/schemas/quiz-schemas';
 import { RadioGroup, RadioGroupItem } from '@/components/ui/radio-group';
 import { cn } from '@/lib/utils';
+import { getFirestore, doc, getDoc } from 'firebase/firestore';
+import { firebaseApp } from '@/lib/firebase';
+
+const db = getFirestore(firebaseApp);
 
 // Reusable Icon component for different resource types
 const ResourceIcon = ({ type }: { type: string }) => {
@@ -419,7 +423,7 @@ const CourseCreationForm = ({
     onCourseCreate,
 }:{
     initialTopic?: string;
-    onCourseCreate: (output: MyTutorOutput) => void;
+    onCourseCreate: (output: MyTutorOutput | null) => void;
 }) => {
     const { user } = useAuth();
     const [topic, setTopic] = useState(initialTopic);
@@ -462,7 +466,7 @@ const CourseCreationForm = ({
             return;
         }
         setIsGenerating(true);
-        onCourseCreate({} as MyTutorOutput); // Clear previous result
+        onCourseCreate(null); // Clear previous result
         try {
             const response = await myTutor({
                 prompt: topic,
@@ -788,18 +792,47 @@ const TalkBuddyDisplay = () => {
 // Wrapper component to avoid server/client component mismatch with Suspense
 const MyTutorPageContent = () => {
     const searchParams = useSearchParams();
+    const { user } = useAuth();
+    const { toast } = useToast();
+    const courseId = searchParams.get('courseId');
     const initialTab = searchParams.get('tab') === 'buddy' ? 'buddy' : 'create';
     const initialTopic = searchParams.get('topic') || '';
 
     const [activeTab, setActiveTab] = useState(initialTab);
     const [result, setResult] = useState<MyTutorOutput | null>(null);
+    const [loadingCourse, setLoadingCourse] = useState(false);
 
+    useEffect(() => {
+        const loadCourse = async () => {
+            if (courseId && user) {
+                setLoadingCourse(true);
+                setResult(null);
+                try {
+                    const courseRef = doc(db, `users/${user.uid}/courses/${courseId}`);
+                    const docSnap = await getDoc(courseRef);
+                    if (docSnap.exists()) {
+                        setResult(docSnap.data() as MyTutorOutput);
+                    } else {
+                        toast({ title: 'Course not found', variant: 'destructive' });
+                    }
+                } catch (error) {
+                    toast({ title: 'Failed to load course', variant: 'destructive' });
+                } finally {
+                    setLoadingCourse(false);
+                }
+            }
+        };
+        loadCourse();
+    }, [courseId, user, toast]);
+    
     // When the tab or topic changes from URL, update the state
     useEffect(() => {
-        setActiveTab(initialTab);
-    }, [initialTab]);
+        if (!courseId) { // Only switch tab if not loading a specific course
+             setActiveTab(initialTab);
+        }
+    }, [initialTab, courseId]);
     
-    const handleCourseCreated = (output: MyTutorOutput) => {
+    const handleCourseCreated = (output: MyTutorOutput | null) => {
         setResult(output);
     };
 
@@ -819,6 +852,14 @@ const MyTutorPageContent = () => {
             </TabsList>
             <TabsContent value="create">
                  <CourseCreationForm onCourseCreate={handleCourseCreated} initialTopic={initialTopic} />
+                 {loadingCourse && (
+                    <Card className="mt-6">
+                        <CardContent className="p-10 flex flex-col items-center justify-center text-center">
+                            <Loader2 className="h-12 w-12 animate-spin text-primary mb-4" />
+                            <p className="text-lg font-medium text-muted-foreground">Loading your course...</p>
+                        </CardContent>
+                    </Card>
+                 )}
                  {result?.course && <CourseDisplay result={result} />}
             </TabsContent>
             <TabsContent value="buddy">

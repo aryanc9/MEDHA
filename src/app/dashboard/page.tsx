@@ -12,6 +12,7 @@ import { Button } from '@/components/ui/button';
 import { Progress } from '@/components/ui/progress';
 import { useToast } from '@/hooks/use-toast';
 import { Textarea } from '@/components/ui/textarea';
+import { CourseHistory } from '@/components/dashboard/CourseHistory';
 
 const ReflectionCard = () => {
     const { user } = useAuth();
@@ -129,23 +130,32 @@ export default function DashboardPage() {
         </Card>
       </div>
 
+      <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
+        <div className="lg:col-span-2">
+            <CourseHistory />
+        </div>
+        <div className="lg:col-span-1">
+            <div className="flex flex-col gap-6">
+                 <FeatureCard
+                    title="Adaptive AI Tutor"
+                    description="Generate a personalized course on any topic."
+                    href="/my-tutor"
+                    icon={<BrainCircuit className="h-10 w-10 text-primary" />}
+                    fullHeight
+                    />
+                <FeatureCard
+                    title="Essay Feedback"
+                    description="Get instant, detailed feedback on your essays."
+                    href="/essay-feedback"
+                    icon={<BookOpenCheck className="h-10 w-10 text-primary" />}
+                    fullHeight
+                />
+            </div>
+        </div>
+      </div>
        <div className="grid grid-cols-1">
             <ReflectionCard />
       </div>
-
-      <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-        <FeatureCard
-          title="Adaptive AI Tutor"
-          description="Generate a personalized course on any topic, complete with lessons, resources, and voice-enabled chat."
-          href="/my-tutor"
-          icon={<BrainCircuit className="h-10 w-10 text-primary" />}
-        />
-        <FeatureCard
-          title="Essay Feedback"
-          description="Get instant, detailed feedback on your essays for grammar, coherence, and creativity."
-          href="/essay-feedback"
-          icon={<BookOpenCheck className="h-10 w-10 text-primary" />}
-        />
-      </div>
     </div>
   );
+}
