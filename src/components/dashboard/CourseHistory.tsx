@@ -5,9 +5,9 @@ import { useEffect, useState } from 'react';
 import { collection, query, orderBy, onSnapshot, getFirestore } from 'firebase/firestore';
 import { useAuth } from '@/hooks/use-auth';
 import { firebaseApp } from '@/lib/firebase';
-import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
+import { Card, CardContent, CardDescription, CardHeader, CardTitle, CardFooter } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
-import { Loader2, BookOpen, Clock } from 'lucide-react';
+import { Loader2, BookOpen, Clock, History } from 'lucide-react';
 import Link from 'next/link';
 import { formatDistanceToNow } from 'date-fns';
 import { ScrollArea } from '@/components/ui/scroll-area';
@@ -72,7 +72,7 @@ export function CourseHistory() {
         <CardDescription>Your previously generated courses.</CardDescription>
       </CardHeader>
       <CardContent className="flex-grow">
-        <ScrollArea className="h-96">
+        <ScrollArea className="h-80">
             {courses.length === 0 ? (
             <div className="flex flex-col items-center justify-center text-center h-full text-muted-foreground p-8">
                 <BookOpen className="h-12 w-12 mb-4" />
@@ -99,6 +99,13 @@ export function CourseHistory() {
             )}
         </ScrollArea>
       </CardContent>
+       <CardFooter>
+            <Button asChild variant="outline" className="w-full">
+                <Link href="/my-tutor">
+                    <History className="mr-2 h-4 w-4" /> View all history
+                </Link>
+            </Button>
+        </CardFooter>
     </Card>
   );
 }
