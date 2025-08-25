@@ -683,7 +683,7 @@ const TalkBuddyDisplay = () => {
             const response: TalkBuddyOutput = await talkBuddy({ 
                 prompt: currentMessage,
                 language,
-                messages, // Pass current message history for context
+                messages: messages.map(m => ({ sender: m.sender, text: m.text })), // Pass history without audioUrl
                 userId: user.uid,
                 conversationId,
              });
