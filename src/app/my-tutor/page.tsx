@@ -736,10 +736,15 @@ const TalkBuddyDisplay = () => {
                             </SelectTrigger>
                             <SelectContent>
                                 <SelectItem value="English">English</SelectItem>
+                                <SelectItem value="Hindi">Hindi</SelectItem>
+                                <SelectItem value="Marathi">Marathi</SelectItem>
+                                <SelectItem value="Kannada">Kannada</SelectItem>
+                                <SelectItem value="Tamil">Tamil</SelectItem>
+                                <SelectItem value="Telugu">Telugu</SelectItem>
+                                <SelectItem value="Bengali">Bengali</SelectItem>
                                 <SelectItem value="Spanish">Spanish</SelectItem>
                                 <SelectItem value="French">French</SelectItem>
                                 <SelectItem value="German">German</SelectItem>
-                                <SelectItem value="Hindi">Hindi</SelectItem>
                                 <SelectItem value="Japanese">Japanese</SelectItem>
                             </SelectContent>
                         </Select>
@@ -878,5 +883,7 @@ export default function MyTutorPage() {
         </React.Suspense>
     );
 }
+
+    
 
     
