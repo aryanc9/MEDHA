@@ -22,7 +22,7 @@ const EssayFeedbackInputSchema = z.object({
 });
 export type EssayFeedbackInput = z.infer<typeof EssayFeedbackInputSchema>;
 
-const EssayFeedbackOutputSchema = z.object({
+export const EssayFeedbackOutputSchema = z.object({
   grammarFeedback: z.string().describe('Feedback on the grammar of the essay.'),
   coherenceFeedback:
     z.string().describe('Feedback on the coherence of the essay.'),
