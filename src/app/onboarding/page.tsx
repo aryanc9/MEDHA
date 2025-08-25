@@ -14,9 +14,11 @@ import { Loader2 } from 'lucide-react';
 import { useToast } from '@/hooks/use-toast';
 import { useAuth } from '@/hooks/use-auth';
 import { ProtectRoute } from '@/components/auth/ProtectRoute';
+import { Input } from '@/components/ui/input';
 
 
 const formSchema = z.object({
+  learningGoal: z.string().min(5, 'Please briefly describe your learning goal.'),
   careerPath: z.string().min(1, 'Please select a career path.'),
   academicLevel: z.string().min(1, 'Please select an academic level.'),
 });
@@ -32,6 +34,7 @@ function OnboardingPageContent() {
   const form = useForm<FormData>({
     resolver: zodResolver(formSchema),
     defaultValues: {
+      learningGoal: '',
       careerPath: '',
       academicLevel: '',
     },
@@ -45,6 +48,7 @@ function OnboardingPageContent() {
     setLoading(true);
     try {
       await updateUserSettings(user.uid, { 
+        learningGoal: data.learningGoal,
         careerPath: data.careerPath,
         academicLevel: data.academicLevel,
         email: user.email,
@@ -53,13 +57,13 @@ function OnboardingPageContent() {
 
       toast({
         title: "Welcome!",
-        description: "Your personalized learning path has been created.",
+        description: "Your personalized learning journey has been set up.",
       });
 
       router.push('/dashboard');
 
     } catch (error) {
-      console.error('Failed to save learning path:', error);
+      console.error('Failed to save settings:', error);
       toast({
         title: "Error",
         description: "Could not save your preferences. Please try again.",
@@ -75,13 +79,26 @@ function OnboardingPageContent() {
         <div className="w-full max-w-lg p-4">
             <Card>
                 <CardHeader className="text-center">
-                    <CardTitle className="text-3xl font-bold font-headline">Welcome to Medha!</CardTitle>
-                    <CardDescription>Let's set up your personalized learning path to get you started.</CardDescription>
+                    <CardTitle className="text-3xl font-bold font-headline">Welcome to MetaLearn AI!</CardTitle>
+                    <CardDescription>To get started, let's set your first learning goal.</CardDescription>
                 </CardHeader>
                 <CardContent>
                     <Form {...form}>
                     <form onSubmit={form.handleSubmit(onSubmit)} className="space-y-6">
                         <div className="grid grid-cols-1 gap-4">
+                        <FormField
+                            control={form.control}
+                            name="learningGoal"
+                            render={({ field }) => (
+                                <FormItem>
+                                    <FormLabel>What is your primary learning goal right now?</FormLabel>
+                                    <FormControl>
+                                        <Input placeholder="e.g., 'Master calculus for my final exam'" {...field} />
+                                    </FormControl>
+                                    <FormMessage />
+                                </FormItem>
+                            )}
+                        />
                         <FormField
                             control={form.control}
                             name="careerPath"
@@ -133,7 +150,7 @@ function OnboardingPageContent() {
                         {loading ? (
                             <>
                             <Loader2 className="mr-2 h-4 w-4 animate-spin" />
-                            Generating Your Path...
+                            Setting Up Your Dashboard...
                             </>
                         ) : (
                             'Complete Setup'

@@ -18,14 +18,14 @@ import { useTheme } from 'next-themes';
 import { SidebarTrigger } from '@/components/layout/SidebarTrigger';
 import { usePathname } from 'next/navigation';
 
-const MedhaLogo = ({ className }: { className?: string }) => (
+const MetaLearnLogo = ({ className }: { className?: string }) => (
     <svg
-      viewBox="0 0 160 40"
+      viewBox="0 0 200 40"
       xmlns="http://www.w3.org/2000/svg"
       className={className}
       >
-        <text x="50%" y="50%" dominantBaseline="middle" textAnchor="middle" fontSize="32" fontWeight="bold" fill="currentColor" className="font-headline">
-            MEDHA
+        <text x="50%" y="50%" dominantBaseline="middle" textAnchor="middle" fontSize="28" fontWeight="bold" fill="currentColor" className="font-headline">
+            MetaLearn AI
         </text>
     </svg>
 );
@@ -43,7 +43,7 @@ export function Header() {
         <div className="flex items-center gap-4">
             {isDashboard ? <SidebarTrigger /> : null}
              <Link href="/" className="hidden md:flex items-center gap-2">
-                <MedhaLogo className="w-32 h-16 text-primary" />
+                <MetaLearnLogo className="w-40 h-16 text-primary" />
             </Link>
         </div>
         

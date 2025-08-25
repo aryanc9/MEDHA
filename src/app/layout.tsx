@@ -13,8 +13,8 @@ const lexend = Lexend({ subsets: ['latin'], variable: '--font-lexend' });
 
 
 export const metadata: Metadata = {
-  title: 'Medha - Your Personal AI Tutor',
-  description: 'AI-powered learning platform with adaptive tutoring, essay feedback, and personalized learning paths.',
+  title: 'MetaLearn AI - Adaptive Tutoring with Metacognition',
+  description: 'An adaptive AI tutor that integrates metacognition tools and accessibility-first design to help you learn how to learn.',
 };
 
 export default function RootLayout({

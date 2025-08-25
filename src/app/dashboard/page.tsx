@@ -2,14 +2,15 @@
 'use client';
 
 import { useEffect, useState } from 'react';
-import { BookOpenCheck, BrainCircuit, Route, Loader2, MessageSquare, ArrowRight } from 'lucide-react';
+import { BookOpenCheck, BrainCircuit, Route, Loader2, MessageSquare, ArrowRight, TrendingUp, Lightbulb, Target } from 'lucide-react';
 import { WelcomeHeader } from '@/components/dashboard/WelcomeHeader';
 import { FeatureCard } from '@/components/dashboard/FeatureCard';
-import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
+import { Card, CardContent, CardDescription, CardHeader, CardTitle, CardFooter } from '@/components/ui/card';
 import { useAuth } from '@/hooks/use-auth';
 import { getPersonalizedLearningPath, PersonalizedLearningPathOutput } from '@/ai/flows/personalized-learning-paths';
 import Link from 'next/link';
 import { Button } from '@/components/ui/button';
+import { Progress } from '@/components/ui/progress';
 
 export default function DashboardPage() {
   const { user, userSettings } = useAuth();
@@ -56,25 +57,53 @@ export default function DashboardPage() {
     <div className="flex flex-col w-full p-4 md:p-8 gap-8">
       <WelcomeHeader />
 
-      <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
+      <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
+        <Card className="lg:col-span-2">
+            <CardHeader>
+                <CardTitle className="font-headline flex items-center gap-2">
+                    <Target className="h-6 w-6 text-primary" />
+                    <span>Current Goal: {userSettings?.learningGoal || 'Not set'}</span>
+                </CardTitle>
+                <CardDescription>
+                    Your progress towards completing your primary learning objective.
+                </CardDescription>
+            </CardHeader>
+            <CardContent>
+                <Progress value={33} className="w-full" />
+            </CardContent>
+            <CardFooter>
+                 <p className="text-sm text-muted-foreground">You're off to a great start! Keep going.</p>
+            </CardFooter>
+        </Card>
+
         <FeatureCard
-          title="My Tutor"
-          description="Your personal AI-powered tutor. Ask any question and get instant explanations."
+          title="Adaptive Tutor"
+          description="Engage with lessons that adapt to your pace and style."
           href="/my-tutor"
           icon={<BrainCircuit className="h-8 w-8 text-primary" />}
+          fullHeight
         />
-        <FeatureCard
-          title="Essay Feedback"
-          description="Submit your essays for instant, AI-powered feedback."
-          href="/essay-feedback"
-          icon={<BookOpenCheck className="h-8 w-8 text-primary" />}
-        />
-         <FeatureCard
-          title="Talk Buddy"
-          description="Practice languages with your real-time conversational AI partner."
-          href="/my-tutor?tab=buddy"
-          icon={<MessageSquare className="h-8 w-8 text-primary" />}
-        />
+      </div>
+
+       <div className="grid grid-cols-1">
+        <Card>
+            <CardHeader>
+                <CardTitle className="font-headline flex items-center gap-2">
+                    <TrendingUp className="h-6 w-6 text-primary" />
+                    <span>Learning Insights & Reflections</span>
+                </CardTitle>
+                <CardDescription>
+                      Review your performance, analyze mistakes, and get prompts to reflect on your learning strategies.
+                  </CardDescription>
+            </CardHeader>
+            <CardContent>
+                <div className="p-8 text-center text-muted-foreground border-2 border-dashed rounded-lg">
+                    <Lightbulb className="h-10 w-10 mx-auto mb-4" />
+                    <p>Your learning insights will appear here after you complete a few lessons.</p>
+                    <p className="text-sm">This is where the AI will help you analyze your learning patterns.</p>
+                </div>
+            </CardContent>
+        </Card>
       </div>
 
       <div className="grid grid-cols-1">
@@ -82,13 +111,13 @@ export default function DashboardPage() {
             <CardHeader>
                 <CardTitle className="font-headline flex items-center gap-2">
                     <Route className="h-6 w-6 text-primary" />
-                    <span>Your Learning Path</span>
+                    <span>Your Recommended Path</span>
                 </CardTitle>
                 {loading ? (
                   <CardDescription>Loading your personalized recommendations...</CardDescription>
                 ) : (
                   <CardDescription>
-                      {learningPath?.reasoning || "Set your career path in settings to see your personalized learning path."}
+                      {learningPath?.reasoning || "Set your learning goal in settings to see your personalized path."}
                   </CardDescription>
                 )}
             </CardHeader>

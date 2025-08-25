@@ -33,7 +33,9 @@ import {
     Volume2,
     User as UserIcon,
     Bot,
-    History
+    History,
+    Accessibility,
+    Lightbulb
 } from 'lucide-react';
 import { myTutor, type MyTutorOutput } from '@/ai/flows/my-tutor';
 import { talkBuddy, type TalkBuddyOutput } from '@/ai/flows/talk-buddy';
@@ -119,8 +121,9 @@ const CourseDisplay = ({ result }: { result: MyTutorOutput; }) => {
             </CardHeader>
             <CardContent>
                 <Tabs defaultValue="course">
-                    <TabsList className="grid w-full grid-cols-3 mb-6">
+                    <TabsList className="grid w-full grid-cols-4 mb-6">
                         <TabsTrigger value="course"><BookText className="mr-2"/> Course Content</TabsTrigger>
+                         <TabsTrigger value="reflection" disabled={!result.reflectionPrompt}><Lightbulb className="mr-2"/>Reflection</TabsTrigger>
                         <TabsTrigger value="resources" disabled={!result.relatedResources || result.relatedResources.length === 0}><Video className="mr-2"/>Further Learning</TabsTrigger>
                         <TabsTrigger value="visual" disabled={!result.imageUrl}><ImageIcon className="mr-2"/>Visual Aid</TabsTrigger>
                     </TabsList>
@@ -151,6 +154,18 @@ const CourseDisplay = ({ result }: { result: MyTutorOutput; }) => {
                                 </AccordionItem>
                             ))}
                         </Accordion>
+                    </TabsContent>
+                    <TabsContent value="reflection">
+                        <Card className="bg-blue-900/10 border-blue-500/30">
+                            <CardHeader>
+                                <CardTitle className="flex items-center gap-2 text-blue-300"><Lightbulb /> Reflection Prompt</CardTitle>
+                            </CardHeader>
+                            <CardContent>
+                                <p className="text-lg text-blue-200/90 mb-4">{result.reflectionPrompt}</p>
+                                <Textarea placeholder="Write your thoughts here..." rows={5} className="bg-background/50"/>
+                                <Button className="mt-4">Save Reflection</Button>
+                            </CardContent>
+                        </Card>
                     </TabsContent>
                     <TabsContent value="resources">
                         <div className="space-y-6">
@@ -535,8 +550,8 @@ const TalkBuddyDisplay = ({ loadConversation }: { loadConversation: (messages: T
             <CardHeader>
                 <div className="flex justify-between items-center">
                     <div>
-                        <CardTitle className="flex items-center gap-2"><Bot /> Talk Buddy</CardTitle>
-                        <CardDescription>Have a real-time conversation with your AI tutor.</CardDescription>
+                        <CardTitle className="flex items-center gap-2"><Accessibility /> Voice-Enabled Tutor</CardTitle>
+                        <CardDescription>Practice, ask questions, and learn through conversation.</CardDescription>
                     </div>
                     <Button onClick={startNewChat} variant="outline">Start New Chat</Button>
                 </div>
@@ -725,9 +740,9 @@ const MyTutorPageContent = () => {
         <div className="container mx-auto max-w-6xl py-12 px-4">
              <div className="flex justify-between items-start mb-10">
                 <div className="text-center flex-1">
-                    <h1 className="text-4xl font-bold tracking-tight font-headline">My AI Tutor</h1>
+                    <h1 className="text-4xl font-bold tracking-tight font-headline">Adaptive AI Tutor</h1>
                     <p className="text-muted-foreground mt-2 max-w-2xl mx-auto">
-                        Generate a personalized course or chat with your AI buddy.
+                        Generate a personalized course with metacognitive feedback or use the voice-enabled tutor.
                     </p>
                 </div>
                 <Sheet open={isSheetOpen} onOpenChange={setIsSheetOpen}>
@@ -749,7 +764,7 @@ const MyTutorPageContent = () => {
            <Tabs value={activeTab} onValueChange={setActiveTab} className="w-full">
             <TabsList className="grid w-full grid-cols-2">
               <TabsTrigger value="create"><BookCopy className="mr-2"/> Create Course</TabsTrigger>
-              <TabsTrigger value="buddy"><MessageSquare className="mr-2"/> Talk Buddy</TabsTrigger>
+              <TabsTrigger value="buddy"><Accessibility className="mr-2"/> Voice Tutor</TabsTrigger>
             </TabsList>
             <TabsContent value="create">
                  <CourseCreationForm onCourseCreate={handleCourseCreated} initialTopic={initialTopic} />
@@ -771,4 +786,3 @@ export default function MyTutorPage() {
         </React.Suspense>
     );
 }
-

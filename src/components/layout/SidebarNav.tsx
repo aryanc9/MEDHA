@@ -8,7 +8,9 @@ import {
     LayoutDashboard, 
     LogOut, 
     PenSquare,
-    Settings
+    Settings,
+    Accessibility,
+    Lightbulb
 } from "lucide-react"
 import { useAuth } from "@/hooks/use-auth"
 import {
@@ -21,14 +23,14 @@ import {
 } from "@/components/ui/sidebar"
 import { useSidebar } from "@/components/ui/sidebar"
 
-const MedhaLogo = ({ className }: { className?: string }) => (
+const MetaLearnLogo = ({ className }: { className?: string }) => (
     <svg
-      viewBox="0 0 160 40"
+      viewBox="0 0 200 40"
       xmlns="http://www.w3.org/2000/svg"
       className={className}
       >
-        <text x="50%" y="50%" dominantBaseline="middle" textAnchor="middle" fontSize="32" fontWeight="bold" fill="currentColor" className="font-headline">
-            MEDHA
+        <text x="50%" y="50%" dominantBaseline="middle" textAnchor="middle" fontSize="28" fontWeight="bold" fill="currentColor" className="font-headline">
+            MetaLearn AI
         </text>
     </svg>
 );
@@ -48,9 +50,9 @@ export function SidebarNav() {
       <SidebarHeader>
         <Link href="/dashboard" className="flex items-center gap-2">
             {isCollapsed ? (
-                 <MedhaLogo className="w-10 h-10 text-primary" />
+                 <MetaLearnLogo className="w-10 h-10 text-primary" />
             ) : (
-                 <MedhaLogo className="w-32 h-16 text-primary" />
+                 <MetaLearnLogo className="w-40 h-16 text-primary" />
             )}
         </Link>
       </SidebarHeader>
@@ -73,11 +75,11 @@ export function SidebarNav() {
             <SidebarMenuButton
               asChild
               isActive={isActive("/my-tutor")}
-              tooltip={{ children: "My Tutor" }}
+              tooltip={{ children: "Adaptive Tutor" }}
             >
               <Link href="/my-tutor">
                 <PenSquare />
-                <span>My Tutor</span>
+                <span>Adaptive Tutor</span>
               </Link>
             </SidebarMenuButton>
           </SidebarMenuItem>

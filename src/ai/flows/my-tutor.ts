@@ -2,7 +2,7 @@
 'use server';
 
 /**
- * @fileOverview A comprehensive tutoring agent that can respond with text, images, and voice, and save interaction history.
+ * @fileOverview A comprehensive tutoring agent that creates adaptive courses with metacognitive feedback.
  *
  * - myTutor - A function that handles tutoring requests and saves the output.
  * - MyTutorInput - The input type for the myTutor function.
@@ -60,6 +60,7 @@ const MyTutorOutputSchema = z.object({
   imageUrl: z.string().optional().describe('URL of a generated image to supplement the explanation, if applicable.'),
   audioUrl: z.string().optional().describe('URL of a generated audio of the text response.'),
   course: CourseSchema.optional().describe("The generated course content, structured into modules and lessons."),
+  reflectionPrompt: z.string().optional().describe("A metacognitive prompt to encourage the student to reflect on the lesson's content or their learning process."),
   relatedResources: RelatedResourcesSchema.optional().describe('A list of related resources like YouTube videos or articles.'),
   id: z.string().optional().describe('The ID of the saved course document.'),
   createdAt: z.string().optional().describe('The creation date of the course.'),
@@ -75,45 +76,44 @@ const tutorPrompt = ai.definePrompt({
     name: 'tutorPrompt',
     input: { schema: MyTutorInputSchema.omit({ userId: true }) },
     output: { schema: MyTutorOutputSchema.omit({ imageUrl: true, audioUrl: true, id: true, createdAt: true, prompt: true }) },
-    prompt: `You are an expert AI course creator and tutor. Your goal is to generate a comprehensive, well-structured course based on the user's request. The course should be broken down into a logical hierarchy of modules and lessons. Also find relevant external resources to supplement your answer.
+    prompt: `You are an expert AI course creator and a metacognitive learning coach. Your goal is to generate a comprehensive, well-structured course and to help the student learn how to learn.
 
+    **Core Task:**
+    Generate a course on the user's topic. It should be broken down into a logical hierarchy of modules and lessons. Each lesson must have detailed content.
+
+    **Metacognitive Task:**
+    After generating the course content, create ONE insightful reflection prompt. This prompt should encourage the student to think about their learning process, connect concepts, or analyze potential difficulties related to the topic. For example: "What was the most confusing part of this topic, and what strategy could you use to understand it better?" or "How does this concept connect to what you already know about [related topic]?".
+
+    **Resource Task:**
+    Find 5-7 highly relevant external resources (videos, articles) to supplement the lesson. For YouTube videos, ensure they are from reputable channels and provide the video ID.
+
+    **User Request Details:**
     User Topic: {{{prompt}}}
 
     {{#if researchMode}}
-    You are in research mode. Provide a deep, thorough, and detailed course on the topic. Go beyond a simple overview and include nuances, expert insights, and practical examples.
+    You are in research mode. Provide a deep, thorough, and detailed course on the topic.
     {{/if}}
 
     {{#if sourceFile}}
-    You have been provided with a source file. Use the content of this file as the primary basis for the course generation.
-    Source File Content:
+    Use the following file as the primary source material:
     {{{sourceFile}}}
-    You can also use web sources to supplement the information if needed, but the provided file is the main context.
     {{/if}}
 
     {{#if courseStructure}}
-    The user has provided a desired structure or plan for the course. Adhere to this structure as closely as possible.
-    Course Plan:
+    Adhere to this user-provided course structure:
     {{{courseStructure}}}
     {{/if}}
 
     {{#if image}}
     User Image for context: {{media url=image}}
     {{/if}}
-
-    Based on all the provided information, generate the course. Start with a brief, one-paragraph explanation of the topic. Then, generate the structured course content.
-    - The course must have a main title and a brief overview.
-    - The course must be divided into multiple modules.
-    - Each module must contain multiple lessons.
-    - Each lesson must have a title and detailed content formatted in Markdown. Use headings, bold text, and for lists, use a "- " marker for each item.
-    
-    In addition to the main response, find 5-7 highly relevant external resources. For YouTube videos, ensure they are from reputable, educational channels and are publicly available to watch. Provide the title, URL, and type for each resource. If a resource is a YouTube video, please extract and provide its unique video ID from the URL.
     `
 });
 
 const imageGenerationPrompt = ai.definePrompt({
     name: 'imageGenerationPrompt',
     input: { schema: z.object({ topic: z.string() }) },
-    output: { schema: z.object({ imagePrompt: z.string().describe('A prompt for DALL-E to generate a helpful image, if one would be useful.') }) },
+    output: { schema: z.object({ imagePrompt: z.string().describe('A prompt for an image generation model to create a helpful, visually appealing image for a course on the given topic.') }) },
     prompt: `Generate a suitable image prompt for a course on the topic: {{{topic}}}. The prompt should be creative and result in an image that is visually appealing and relevant to the subject.`
 });
 
@@ -125,14 +125,14 @@ const myTutorFlow = ai.defineFlow(
     outputSchema: MyTutorOutputSchema,
   },
   async (input) => {
-    // Step 1: Generate the core text content of the course.
+    // Step 1: Generate the core text content of the course and the reflection prompt.
     const { output: courseOutput } = await tutorPrompt(input);
     if (!courseOutput) {
       console.error("Tutor prompt failed, possibly due to rate limiting. Check your Google AI plan and quota.");
       throw new Error('Failed to get a response from the AI. You may have exceeded your usage quota.');
     }
 
-    const { explanation, course, relatedResources } = courseOutput;
+    const { explanation, course, relatedResources, reflectionPrompt } = courseOutput;
 
     // Step 2: Generate image and audio in parallel. These are non-critical, so if they fail, the course content is still returned.
     const [imageUrlResult, audioUrlResult] = await Promise.allSettled([
@@ -192,6 +192,7 @@ const myTutorFlow = ai.defineFlow(
       imageUrl,
       audioUrl,
       course,
+      reflectionPrompt,
       relatedResources: relatedResources || [],
       prompt: input.prompt,
     };
