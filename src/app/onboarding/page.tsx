@@ -116,6 +116,11 @@ function OnboardingPageContent() {
                                     <SelectItem value="Data Scientist">Data Scientist</SelectItem>
                                     <SelectItem value="UX/UI Designer">UX/UI Designer</SelectItem>
                                     <SelectItem value="Product Manager">Product Manager</SelectItem>
+                                    <SelectItem value="Doctor">Doctor</SelectItem>
+                                    <SelectItem value="Lawyer">Lawyer</SelectItem>
+                                    <SelectItem value="Business Analyst">Business Analyst</SelectItem>
+                                    <SelectItem value="Marketing Manager">Marketing Manager</SelectItem>
+                                    <SelectItem value="Not Decided Yet">Not Decided Yet</SelectItem>
                                 </SelectContent>
                                 </Select>
                                 <FormMessage />
@@ -135,10 +140,12 @@ function OnboardingPageContent() {
                                     </Trigger>
                                 </FormControl>
                                 <SelectContent>
-                                    <SelectItem value="High School">High School</SelectItem>
+                                    <SelectItem value="Middle School">Middle School (Grades 6-8)</SelectItem>
+                                    <SelectItem value="High School">High School (Grades 9-12)</SelectItem>
                                     <SelectItem value="Undergraduate">Undergraduate</SelectItem>
                                     <SelectItem value="Graduate">Graduate</SelectItem>
                                     <SelectItem value="Professional">Professional</SelectItem>
+                                    <SelectItem value="Lifelong Learner">Lifelong Learner</SelectItem>
                                 </SelectContent>
                                 </Select>
                                 <FormMessage />

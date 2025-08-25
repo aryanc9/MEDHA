@@ -323,10 +323,15 @@ function SettingsPageContent() {
                             <Select onValueChange={field.onChange} value={field.value}>
                                 <FormControl><SelectTrigger><SelectValue placeholder="Select a career" /></SelectTrigger></FormControl>
                                 <SelectContent>
-                                <SelectItem value="Software Engineer">Software Engineer</SelectItem>
-                                <SelectItem value="Data Scientist">Data Scientist</SelectItem>
-                                <SelectItem value="UX/UI Designer">UX/UI Designer</SelectItem>
-                                <SelectItem value="Product Manager">Product Manager</SelectItem>
+                                    <SelectItem value="Software Engineer">Software Engineer</SelectItem>
+                                    <SelectItem value="Data Scientist">Data Scientist</SelectItem>
+                                    <SelectItem value="UX/UI Designer">UX/UI Designer</SelectItem>
+                                    <SelectItem value="Product Manager">Product Manager</SelectItem>
+                                    <SelectItem value="Doctor">Doctor</SelectItem>
+                                    <SelectItem value="Lawyer">Lawyer</SelectItem>
+                                    <SelectItem value="Business Analyst">Business Analyst</SelectItem>
+                                    <SelectItem value="Marketing Manager">Marketing Manager</SelectItem>
+                                    <SelectItem value="Not Decided Yet">Not Decided Yet</SelectItem>
                                 </SelectContent>
                             </Select>
                             <FormMessage />
@@ -338,10 +343,12 @@ function SettingsPageContent() {
                             <Select onValueChange={field.onChange} value={field.value}>
                                 <FormControl><SelectTrigger><SelectValue placeholder="Select your level" /></SelectTrigger></FormControl>
                                 <SelectContent>
-                                <SelectItem value="High School">High School</SelectItem>
-                                <SelectItem value="Undergraduate">Undergraduate</SelectItem>
-                                <SelectItem value="Graduate">Graduate</SelectItem>
-                                <SelectItem value="Professional">Professional</SelectItem>
+                                    <SelectItem value="Middle School">Middle School (Grades 6-8)</SelectItem>
+                                    <SelectItem value="High School">High School (Grades 9-12)</SelectItem>
+                                    <SelectItem value="Undergraduate">Undergraduate</SelectItem>
+                                    <SelectItem value="Graduate">Graduate</SelectItem>
+                                    <SelectItem value="Professional">Professional</SelectItem>
+                                    <SelectItem value="Lifelong Learner">Lifelong Learner</SelectItem>
                                 </SelectContent>
                             </Select>
                             <FormMessage />
