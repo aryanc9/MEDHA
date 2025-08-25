@@ -87,6 +87,13 @@ const findWebImage = ai.defineTool(
     }
 );
 
+const imageGenerationPrompt = ai.definePrompt({
+    name: 'imageGenerationPrompt',
+    input: { schema: z.object({ topic: z.string() }) },
+    output: { schema: z.object({ imagePrompt: z.string().describe('A prompt for an image generation model to create a helpful, visually appealing image for a course on the given topic.') }) },
+    prompt: `Based on the user's topic, generate a creative and suitable image prompt for a course on the topic: {{{topic}}}. The prompt should result in an image that is visually appealing and relevant to the subject.
+    `
+});
 
 const tutorPrompt = ai.definePrompt({
     name: 'tutorPrompt',
@@ -97,7 +104,7 @@ const tutorPrompt = ai.definePrompt({
 
     **Visual Aid Decision:**
     Before responding, you must decide what kind of visual aid is most appropriate for the user's topic.
-    - If the topic is best explained with a real-world photograph, a diagram, or a specific, existing image (e.g., 'a photo of the Eiffel Tower', 'a diagram of a plant cell'), use the 'findWebImage' tool.
+    - If the topic is best explained with a real-world photograph, a diagram, or a specific, existing image (e.g., 'a photo of the Eiffel Tower', 'a diagram of a plant cell'), use the 'findWebImage' tool. Do NOT create an image prompt in this case.
     - If the topic is abstract, conceptual, or would benefit from a creative, AI-generated image (e.g., 'a visual metaphor for creativity', 'an imaginative landscape'), you will later create a prompt for an image generation model. Do NOT use the tool in this case.
     - If no visual aid is necessary, do not use the tool or create an image prompt.
 
@@ -133,17 +140,6 @@ const tutorPrompt = ai.definePrompt({
     `
 });
 
-const imageGenerationPrompt = ai.definePrompt({
-    name: 'imageGenerationPrompt',
-    input: { schema: z.object({ topic: z.string() }) },
-    output: { schema: z.object({ imagePrompt: z.string().describe('A prompt for an image generation model to create a helpful, visually appealing image for a course on the given topic.') }) },
-    prompt: `Based on the user's topic, decide if an AI-generated image is appropriate.
-    - If the topic is best explained by a real photo or diagram (e.g., a specific person, place, or scientific diagram), respond with "NO_IMAGE_NEEDED".
-    - Otherwise, generate a creative and suitable image prompt for a course on the topic: {{{topic}}}. The prompt should result in an image that is visually appealing and relevant to the subject.
-    `
-});
-
-
 const myTutorFlow = ai.defineFlow(
   {
     name: 'myTutorFlow',
@@ -165,64 +161,32 @@ const myTutorFlow = ai.defineFlow(
     let imageUrl: string | undefined;
 
     // Check if the model decided to use the findWebImage tool.
-    const toolRequest = llmResponse.requests.find(r => r.toolRequest.name === 'findWebImage');
+    const toolRequest = llmResponse.requests?.find(r => r.toolRequest.name === 'findWebImage');
     if (toolRequest) {
         const toolResponse = await toolRequest.run();
         imageUrl = (toolResponse as { imageUrl: string }).imageUrl;
     } else {
-        // If the tool wasn't used, proceed with the original image generation logic.
-         const [imageUrlResult, audioUrlResult] = await Promise.allSettled([
-            (async () => {
-                try {
-                    const { output: imagePromptOutput } = await imageGenerationPrompt({ topic: input.prompt });
-                    if (!imagePromptOutput?.imagePrompt || imagePromptOutput.imagePrompt === 'NO_IMAGE_NEEDED') return undefined;
-
-                    const { media } = await ai.generate({
-                        model: 'googleai/gemini-2.0-flash-preview-image-generation',
-                        prompt: imagePromptOutput.imagePrompt,
-                        config: {
-                            responseModalities: ['TEXT', 'IMAGE'],
-                        },
-                    });
-                    return media?.url;
-                } catch (e) {
-                    console.warn("Image generation failed, likely due to quota. Skipping image.", e);
-                    return undefined;
-                }
-            })(),
-            (async () => {
-                if (!explanation) return undefined;
-                try {
-                    const { media } = await ai.generate({
-                        model: 'googleai/gemini-2.5-flash-preview-tts',
-                        config: {
-                            responseModalities: ['AUDIO'],
-                            speechConfig: {
-                            voiceConfig: {
-                                prebuiltVoiceConfig: { voiceName: 'Algenib' },
-                            },
-                            },
-                        },
-                        prompt: explanation,
-                    });
-                    if (!media) return undefined;
-                    const audioBuffer = Buffer.from(
-                        media.url.substring(media.url.indexOf(',') + 1),
-                        'base64'
-                    );
-                    const wavBase64 = await toWav(audioBuffer);
-                    return `data:audio/wav;base64,${wavBase64}`;
-                } catch (e) {
-                    console.warn("TTS generation failed, likely due to quota. Skipping audio.", e);
-                    return undefined;
-                }
-            })()
-        ]);
-         imageUrl = imageUrlResult.status === 'fulfilled' ? imageUrlResult.value : undefined;
+        // If the tool wasn't used, proceed with AI image generation logic.
+        try {
+            const { output: imagePromptOutput } = await imageGenerationPrompt({ topic: input.prompt });
+            if (imagePromptOutput?.imagePrompt) {
+                const { media } = await ai.generate({
+                    model: 'googleai/gemini-2.0-flash-preview-image-generation',
+                    prompt: imagePromptOutput.imagePrompt,
+                    config: {
+                        responseModalities: ['TEXT', 'IMAGE'],
+                    },
+                });
+                imageUrl = media?.url;
+            }
+        } catch (e) {
+            console.warn("AI image generation failed, likely due to quota. Skipping image.", e);
+            imageUrl = undefined;
+        }
     }
      
-    // Step 3: Generate audio in parallel (if not already done).
-    const audioUrlResult = await (async () => {
+    // Step 3: Generate audio in parallel.
+    const audioUrl = await (async () => {
             if (!explanation) return undefined;
             try {
                 const { media } = await ai.generate({
@@ -230,9 +194,9 @@ const myTutorFlow = ai.defineFlow(
                     config: {
                         responseModalities: ['AUDIO'],
                         speechConfig: {
-                        voiceConfig: {
-                            prebuiltVoiceConfig: { voiceName: 'Algenib' },
-                        },
+                            voiceConfig: {
+                                prebuiltVoiceConfig: { voiceName: 'Algenib' },
+                            },
                         },
                     },
                     prompt: explanation,
@@ -250,9 +214,6 @@ const myTutorFlow = ai.defineFlow(
             }
         })();
     
-    const audioUrl = audioUrlResult;
-
-
     // Step 4: Assemble the final result object.
     const finalResult: MyTutorOutput = {
       explanation: explanation || "I'm sorry, I couldn't come up with an explanation for that.",
@@ -278,7 +239,7 @@ const myTutorFlow = ai.defineFlow(
         // Prevent overly large data URIs from being saved to Firestore.
         if (historyData.imageUrl && historyData.imageUrl.startsWith('data:image')) {
             console.warn("Generated image is a data URI, omitting from history to avoid size issues.");
-            historyData.imageUrl = undefined;
+            historyData.imageUrl = `https://placehold.co/1280x720.png?text=AI+Generated+Image`;
         }
 
          if (historyData.audioUrl && historyData.audioUrl.length > 1048487) {

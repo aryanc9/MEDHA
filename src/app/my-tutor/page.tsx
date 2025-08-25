@@ -224,7 +224,7 @@ const CourseDisplay = ({ result }: { result: MyTutorOutput; }) => {
                     </TabsContent>
                     <TabsContent value="visual">
                          <div className="relative aspect-video w-full overflow-hidden rounded-lg border">
-                                {result.imageUrl && <Image src={result.imageUrl} alt="Generated image for the course" layout="fill" objectFit="cover" />}
+                                {result.imageUrl && <Image src={result.imageUrl} alt="Visual aid for the course" layout="fill" objectFit="cover" />}
                         </div>
                     </TabsContent>
                 </Tabs>
@@ -268,7 +268,7 @@ const CourseCreationForm = ({
             reader.onerror = () => {
                 toast({ title: "Error reading file", variant: "destructive" });
             };
-            reader.readAsText(file);
+            reader.readAsDataURL(file); // Read as Data URL
         }
     };
 
@@ -294,9 +294,9 @@ const CourseCreationForm = ({
             });
             onCourseCreate(response);
             toast({ title: "Success!", description: "Your course has been generated and saved." });
-        } catch (error) {
+        } catch (error: any) {
             console.error('Failed to create course:', error);
-            toast({ title: "Error", description: "Failed to create the course.", variant: "destructive" });
+            toast({ title: "Error", description: error.message || "Failed to create the course.", variant: "destructive" });
         } finally {
             setIsGenerating(false);
         }
@@ -495,7 +495,7 @@ const TalkBuddyDisplay = ({ loadConversation }: { loadConversation: (messages: T
         const currentMessage = text.trim();
         if (!currentMessage || !user) return;
         
-        const userMessage: TalkBuddyMessage = { sender: 'user', text: currentMessage };
+        const userMessage: TalkBuddyMessage = { sender: 'user', text: currentMessage, audioUrl: null };
         const newMessages = [...messages, userMessage];
         setMessages(newMessages);
         setUserInput('');
@@ -786,3 +786,5 @@ export default function MyTutorPage() {
         </React.Suspense>
     );
 }
+
+    
