@@ -6,16 +6,18 @@ import { useForm, SubmitHandler } from 'react-hook-form';
 import { zodResolver } from '@hookform/resolvers/zod';
 import * as z from 'zod';
 import { essayFeedback, EssayFeedbackOutput } from '@/ai/flows/essay-feedback';
+import { essayFeedbackChat, type EssayFeedbackChatInput } from '@/ai/flows/essay-feedback-chat';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Form, FormControl, FormField, FormItem, FormLabel, FormMessage } from '@/components/ui/form';
 import { Input } from '@/components/ui/input';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { Textarea } from '@/components/ui/textarea';
-import { Loader2, Sparkles, Wand2 } from 'lucide-react';
+import { Loader2, Sparkles, Wand2, Send, User, Bot } from 'lucide-react';
 import { Accordion, AccordionContent, AccordionItem, AccordionTrigger } from '@/components/ui/accordion';
 import { useToast } from '@/hooks/use-toast';
 import { Separator } from '@/components/ui/separator';
+import { ScrollArea } from '@/components/ui/scroll-area';
 
 
 const formSchema = z.object({
@@ -26,8 +28,12 @@ const formSchema = z.object({
 
 type FormData = z.infer<typeof formSchema>;
 
+interface ChatMessage {
+    sender: 'user' | 'bot';
+    text: string;
+}
+
 const HighlightedEssayDisplay = ({ content }: { content: string }) => {
-    // A simple parser to convert markdown to styled spans
     const parsedContent = content
         .replace(/~~\s*(.*?)\s*~~/g, '<del class="bg-red-500/20 px-1 rounded-sm">$1</del>')
         .replace(/\*\*\s*(.*?)\s*\*\*/g, '<strong class="bg-green-500/20 px-1 rounded-sm">$1</strong>');
@@ -44,19 +50,20 @@ export default function EssayFeedbackPage() {
   const [loading, setLoading] = useState(false);
   const [result, setResult] = useState<EssayFeedbackOutput | null>(null);
   const { toast } = useToast();
-
   const form = useForm<FormData>({
     resolver: zodResolver(formSchema),
-    defaultValues: {
-      topic: '',
-      gradeLevel: '',
-      essay: '',
-    },
+    defaultValues: { topic: '', gradeLevel: '', essay: '' },
   });
+
+  const [chatHistory, setChatHistory] = useState<ChatMessage[]>([]);
+  const [chatQuery, setChatQuery] = useState('');
+  const [isChatLoading, setIsChatLoading] = useState(false);
+  
 
   const onSubmit: SubmitHandler<FormData> = async (data) => {
     setLoading(true);
     setResult(null);
+    setChatHistory([]);
     try {
       const response = await essayFeedback(data);
       setResult(response);
@@ -68,6 +75,40 @@ export default function EssayFeedbackPage() {
       setLoading(false);
     }
   };
+
+  const handleChatSubmit = async (e: React.FormEvent) => {
+      e.preventDefault();
+      if (!chatQuery.trim() || !result) return;
+      
+      const newHistory: ChatMessage[] = [...chatHistory, { sender: 'user', text: chatQuery }];
+      setChatHistory(newHistory);
+      setChatQuery('');
+      setIsChatLoading(true);
+
+      try {
+          const chatInput: EssayFeedbackChatInput = {
+              ...form.getValues(),
+              initialFeedback: result,
+              chatHistory: newHistory,
+              query: chatQuery,
+          };
+          const response = await essayFeedbackChat(chatInput);
+
+          setChatHistory(prev => [...prev, { sender: 'bot', text: response.response }]);
+          
+          if(response.updatedEssay) {
+            setResult(prev => prev ? { ...prev, highlightedEssay: response.updatedEssay! } : null);
+            toast({ title: "Essay Updated", description: "The suggested revisions have been updated based on your request."})
+          }
+
+      } catch (error) {
+          console.error("Chat Error:", error);
+          toast({ title: "Chat Error", description: "Failed to get a response.", variant: "destructive"})
+          setChatHistory(prev => prev.slice(0, -1));
+      } finally {
+          setIsChatLoading(false);
+      }
+  }
 
   return (
     <div className="container mx-auto max-w-6xl py-12 px-4">
@@ -175,41 +216,61 @@ export default function EssayFeedbackPage() {
                 </div>
               )}
               {result && (
-                <div className="space-y-6">
-                    <Accordion type="single" collapsible defaultValue="item-4" className="w-full">
-                        <AccordionItem value="item-1">
-                            <AccordionTrigger>Grammar</AccordionTrigger>
-                            <AccordionContent>{result.grammarFeedback}</AccordionContent>
-                        </AccordionItem>
-                        <AccordionItem value="item-2">
-                            <AccordionTrigger>Coherence</AccordionTrigger>
-                            <AccordionContent>{result.coherenceFeedback}</AccordionContent>
-                        </AccordionItem>
-                        <AccordionItem value="item-3">
-                            <AccordionTrigger>Relevance to Topic</AccordionTrigger>
-                            <AccordionContent>{result.relevanceFeedback}</AccordionContent>
-                        </AccordionItem>
-                        <AccordionItem value="item-5">
-                            <AccordionTrigger>Creativity</AccordionTrigger>
-                            <AccordionContent>{result.creativityFeedback}</AccordionContent>
-                        </AccordionItem>
-                        <AccordionItem value="item-4">
-                            <AccordionTrigger className="text-base font-bold text-primary">Overall Feedback</AccordionTrigger>
-                            <AccordionContent>{result.overallFeedback}</AccordionContent>
-                        </AccordionItem>
-                    </Accordion>
-                    <Separator />
-                    <div>
-                        <h3 className="text-lg font-semibold flex items-center gap-2 mb-2">
-                            <Wand2 className="h-5 w-5 text-primary"/>
-                            Suggested Revisions
-                        </h3>
-                        <p className="text-sm text-muted-foreground mb-4">
-                            Text to be <strong className="text-green-600">added is bold</strong> and text to be <del className="text-red-600">removed is struck through</del>.
-                        </p>
-                        <div className="border rounded-md p-4 max-h-96 overflow-y-auto">
-                            <HighlightedEssayDisplay content={result.highlightedEssay} />
+                <div className="flex flex-col h-[80vh]">
+                    <div className="flex-1 overflow-y-auto pr-4">
+                        <div className="space-y-6">
+                            <Accordion type="single" collapsible defaultValue="item-4" className="w-full">
+                                <AccordionItem value="item-1"><AccordionTrigger>Grammar</AccordionTrigger><AccordionContent>{result.grammarFeedback}</AccordionContent></AccordionItem>
+                                <AccordionItem value="item-2"><AccordionTrigger>Coherence</AccordionTrigger><AccordionContent>{result.coherenceFeedback}</AccordionContent></AccordionItem>
+                                <AccordionItem value="item-3"><AccordionTrigger>Relevance to Topic</AccordionTrigger><AccordionContent>{result.relevanceFeedback}</AccordionContent></AccordionItem>
+                                <AccordionItem value="item-5"><AccordionTrigger>Creativity</AccordionTrigger><AccordionContent>{result.creativityFeedback}</AccordionContent></AccordionItem>
+                                <AccordionItem value="item-4"><AccordionTrigger className="text-base font-bold text-primary">Overall Feedback</AccordionTrigger><AccordionContent>{result.overallFeedback}</AccordionContent></AccordionItem>
+                            </Accordion>
+                            <Separator />
+                            <div>
+                                <h3 className="text-lg font-semibold flex items-center gap-2 mb-2"><Wand2 className="h-5 w-5 text-primary"/>Suggested Revisions</h3>
+                                <p className="text-sm text-muted-foreground mb-4">Text to be <strong className="text-green-600">added is bold</strong> and text to be <del className="text-red-600">removed is struck through</del>.</p>
+                                <div className="border rounded-md p-4 max-h-80 overflow-y-auto">
+                                    <HighlightedEssayDisplay content={result.highlightedEssay} />
+                                </div>
+                            </div>
                         </div>
+                    </div>
+                    
+                    <Separator className="my-4" />
+                    
+                    <div className="flex flex-col space-y-4">
+                        <h3 className="text-lg font-semibold">Interact with Feedback</h3>
+                         <ScrollArea className="h-48 w-full pr-4">
+                            <div className="space-y-4">
+                                {chatHistory.map((msg, index) => (
+                                    <div key={index} className={`flex items-start gap-3 ${msg.sender === 'user' ? 'justify-end' : ''}`}>
+                                        {msg.sender === 'bot' && <div className="bg-primary text-primary-foreground rounded-full h-8 w-8 flex items-center justify-center flex-shrink-0"><Bot className="h-5 w-5"/></div>}
+                                        <div className={`rounded-lg px-4 py-2 max-w-sm text-sm ${msg.sender === 'bot' ? 'bg-muted' : 'bg-primary text-primary-foreground'}`}>
+                                            <p>{msg.text}</p>
+                                        </div>
+                                        {msg.sender === 'user' && <div className="bg-muted rounded-full h-8 w-8 flex items-center justify-center flex-shrink-0"><User className="h-5 w-5"/></div>}
+                                    </div>
+                                ))}
+                                 {isChatLoading && (
+                                    <div className="flex items-start gap-3">
+                                        <div className="bg-primary text-primary-foreground rounded-full h-8 w-8 flex items-center justify-center flex-shrink-0"><Bot className="h-5 w-5"/></div>
+                                        <div className="rounded-lg px-4 py-2 bg-muted flex items-center"><Loader2 className="h-5 w-5 animate-spin"/></div>
+                                    </div>
+                                )}
+                            </div>
+                         </ScrollArea>
+                        <form onSubmit={handleChatSubmit} className="flex items-center gap-2">
+                            <Input 
+                                value={chatQuery}
+                                onChange={e => setChatQuery(e.target.value)}
+                                placeholder="e.g., 'Can you make it sound more formal?'"
+                                disabled={isChatLoading}
+                            />
+                            <Button type="submit" disabled={isChatLoading || !chatQuery}>
+                                <Send className="h-4 w-4" />
+                            </Button>
+                        </form>
                     </div>
                 </div>
               )}
