@@ -19,37 +19,32 @@ export default function DashboardPage() {
 
   useEffect(() => {
     async function fetchLearningPath() {
-      if (user && userSettings) {
-        setLoading(true);
-        try {
-          const path = await getPersonalizedLearningPath({
-            studentId: user.uid,
-            performanceData: {}, // In a real app, this would come from user's progress
-            careerPath: userSettings.careerPath || 'Software Engineer',
-            academicLevel: userSettings.academicLevel || 'Undergraduate',
-          });
-          setLearningPath(path);
-        } catch (error) {
-          console.error("Failed to fetch learning path:", error);
-          setLearningPath({
-            reasoning: "Could not load your personalized learning path. Please try again later.",
-            moduleRecommendations: [],
-          });
-        } finally {
-          setLoading(false);
-        }
-      } else if (user && !userSettings) {
-         // If there are no settings, don't keep it in a loading state
+      if (!user || !userSettings) {
+        setLoading(false);
+        return;
+      }
+
+      setLoading(true);
+      try {
+        const path = await getPersonalizedLearningPath({
+          studentId: user.uid,
+          performanceData: userSettings.performanceData || {},
+          careerPath: userSettings.careerPath || 'Software Engineer',
+          academicLevel: userSettings.academicLevel || 'Undergraduate',
+        });
+        setLearningPath(path);
+      } catch (error) {
+        console.error("Failed to fetch learning path:", error);
+        setLearningPath({
+          reasoning: "Could not load your personalized learning path. Please try again later.",
+          moduleRecommendations: [],
+        });
+      } finally {
         setLoading(false);
       }
     }
 
-    if (user) {
-        fetchLearningPath();
-    } else {
-        // If there's no user, stop loading.
-        setLoading(false);
-    }
+    fetchLearningPath();
   }, [user, userSettings]);
 
 
