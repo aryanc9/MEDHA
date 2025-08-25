@@ -1,11 +1,30 @@
+
 rules_version = '2';
 
 service cloud.firestore {
   match /databases/{database}/documents {
-    // Grant read/write access to a user for their own document
-    // and all documents in any subcollections under their document.
-    match /users/{userId}/{document=**} {
-      allow read, write: if request.auth != null && request.auth.uid == userId;
+    // Users can read their own document
+    match /users/{userId} {
+      allow read: if request.auth.uid == userId;
+
+      // Users can create their own document
+      allow create: if request.auth.uid == userId;
+
+      // Allow users to update their own document, but only certain fields
+      // to prevent them from giving themselves an arbitrary score.
+      allow update: if request.auth.uid == userId &&
+                    request.resource.data.diff(resource.data).affectedKeys()
+                    .hasOnly(['studentScore', 'learningGoal', 'careerPath', 'academicLevel', 'firstName', 'lastName', 'gender', 'nationality', 'dateOfBirth', 'bloodGroup', 'category', 'tshirtSize', 'primaryContactNumber', 'studentContactNumber', 'studentEmail']);
+      
+      // Allow users to read and write to their own courses subcollection
+      match /courses/{courseId} {
+        allow read, write: if request.auth.uid == userId;
+      }
+
+      // Allow users to read and write to their own conversations subcollection
+      match /conversations/{conversationId} {
+        allow read, write: if request.auth.uid == userId;
+      }
     }
   }
 }
