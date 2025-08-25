@@ -1,6 +1,4 @@
 
-'use server';
-
 import { z } from 'zod';
 
 // Schema for a single quiz question
