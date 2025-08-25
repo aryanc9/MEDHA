@@ -65,6 +65,8 @@ const MyTutorOutputSchema = z.object({
   id: z.string().optional().describe('The ID of the saved course document.'),
   createdAt: z.string().optional().describe('The creation date of the course.'),
   prompt: z.string().optional().describe('The original prompt for the course.'),
+  sourceFile: z.string().optional().describe("The source file data URI used for course generation."),
+  courseStructure: z.string().optional().describe("The user-defined course structure used for generation."),
 });
 export type MyTutorOutput = z.infer<typeof MyTutorOutputSchema>;
 
@@ -74,6 +76,8 @@ const PromptOutputSchema = MyTutorOutputSchema.omit({
   id: true,
   createdAt: true,
   prompt: true,
+  sourceFile: true,
+  courseStructure: true,
 }).extend({
   // Override relatedResources to not include videoId, which we derive in the flow.
   relatedResources: z.array(z.object({
@@ -198,6 +202,9 @@ const myTutorFlow = ai.defineFlow(
       reflectionPrompt,
       relatedResources: processedResources || [],
       prompt: input.prompt,
+      // Also include the source inputs in the final result
+      sourceFile: input.sourceFile,
+      courseStructure: input.courseStructure,
     };
     
     // Step 4: Save the new course document to Firestore.
@@ -210,7 +217,12 @@ const myTutorFlow = ai.defineFlow(
             id: courseId,
             createdAt: new Date().toISOString(),
         };
-
+        
+        if (historyData.sourceFile && historyData.sourceFile.length > 1048487) {
+            console.warn("Source file is too large for Firestore, omitting from history.");
+            historyData.sourceFile = `File too large to save in history: ${historyData.sourceFile.substring(0,50)}...`;
+        }
+        
         if (historyData.audioUrl && historyData.audioUrl.length > 1048487) {
             console.warn("Generated audio is too large for Firestore, omitting from history.");
             historyData.audioUrl = undefined;
@@ -230,5 +242,3 @@ const myTutorFlow = ai.defineFlow(
     return finalResult;
   }
 );
-
-    
