@@ -72,11 +72,34 @@ export async function myTutor(input: MyTutorInput): Promise<MyTutorOutput> {
   return myTutorFlow(input);
 }
 
+const findWebImage = ai.defineTool(
+    {
+        name: 'findWebImage',
+        description: 'Find a real-world image or diagram from the web for a given topic. Use this when a photo or existing diagram is more appropriate than a generated AI image.',
+        inputSchema: z.object({ query: z.string() }),
+        outputSchema: z.object({ imageUrl: z.string().url() }),
+    },
+    async ({ query }) => {
+        // In a real application, this would call an image search API (e.g., Google Custom Search, Unsplash).
+        // For this prototype, we will return a placeholder to simulate the search.
+        console.log(`Simulating image search for: ${query}`);
+        return { imageUrl: `https://placehold.co/1280x720.png?text=Real+Image+of+${encodeURIComponent(query)}` };
+    }
+);
+
+
 const tutorPrompt = ai.definePrompt({
     name: 'tutorPrompt',
     input: { schema: MyTutorInputSchema.omit({ userId: true }) },
     output: { schema: MyTutorOutputSchema.omit({ imageUrl: true, audioUrl: true, id: true, createdAt: true, prompt: true }) },
-    prompt: `You are an expert AI course creator and a metacognitive learning coach. Your goal is to generate a comprehensive, well-structured course and to help the student learn how to learn.
+    tools: [findWebImage],
+    prompt: `You are an expert AI course creator and a metacognitive learning coach. Your goal is to generate a comprehensive, well-structured course and to help the student learn how to learn. You also have tools to find resources.
+
+    **Visual Aid Decision:**
+    Before responding, you must decide what kind of visual aid is most appropriate for the user's topic.
+    - If the topic is best explained with a real-world photograph, a diagram, or a specific, existing image (e.g., 'a photo of the Eiffel Tower', 'a diagram of a plant cell'), use the 'findWebImage' tool.
+    - If the topic is abstract, conceptual, or would benefit from a creative, AI-generated image (e.g., 'a visual metaphor for creativity', 'an imaginative landscape'), you will later create a prompt for an image generation model. Do NOT use the tool in this case.
+    - If no visual aid is necessary, do not use the tool or create an image prompt.
 
     **Core Task:**
     Generate a course on the user's topic. It should be broken down into a logical hierarchy of modules and lessons. Each lesson must have detailed content.
@@ -114,7 +137,10 @@ const imageGenerationPrompt = ai.definePrompt({
     name: 'imageGenerationPrompt',
     input: { schema: z.object({ topic: z.string() }) },
     output: { schema: z.object({ imagePrompt: z.string().describe('A prompt for an image generation model to create a helpful, visually appealing image for a course on the given topic.') }) },
-    prompt: `Generate a suitable image prompt for a course on the topic: {{{topic}}}. The prompt should be creative and result in an image that is visually appealing and relevant to the subject.`
+    prompt: `Based on the user's topic, decide if an AI-generated image is appropriate.
+    - If the topic is best explained by a real photo or diagram (e.g., a specific person, place, or scientific diagram), respond with "NO_IMAGE_NEEDED".
+    - Otherwise, generate a creative and suitable image prompt for a course on the topic: {{{topic}}}. The prompt should result in an image that is visually appealing and relevant to the subject.
+    `
 });
 
 
@@ -125,36 +151,78 @@ const myTutorFlow = ai.defineFlow(
     outputSchema: MyTutorOutputSchema,
   },
   async (input) => {
-    // Step 1: Generate the core text content of the course and the reflection prompt.
-    const { output: courseOutput } = await tutorPrompt(input);
-    if (!courseOutput) {
+    // Step 1: Generate the core text content and decide on the visual aid strategy.
+    const llmResponse = await tutorPrompt(input);
+    
+    if (!llmResponse.output) {
       console.error("Tutor prompt failed, possibly due to rate limiting. Check your Google AI plan and quota.");
       throw new Error('Failed to get a response from the AI. You may have exceeded your usage quota.');
     }
 
-    const { explanation, course, relatedResources, reflectionPrompt } = courseOutput;
+    const { explanation, course, relatedResources, reflectionPrompt } = llmResponse.output;
 
-    // Step 2: Generate image and audio in parallel. These are non-critical, so if they fail, the course content is still returned.
-    const [imageUrlResult, audioUrlResult] = await Promise.allSettled([
-        (async () => {
-            try {
-                const { output: imagePromptOutput } = await imageGenerationPrompt({ topic: input.prompt });
-                if (!imagePromptOutput?.imagePrompt) return undefined;
+    // Step 2: Handle image generation logic based on the LLM's decision.
+    let imageUrl: string | undefined;
 
-                const { media } = await ai.generate({
-                    model: 'googleai/gemini-2.0-flash-preview-image-generation',
-                    prompt: imagePromptOutput.imagePrompt,
-                    config: {
-                        responseModalities: ['TEXT', 'IMAGE'],
-                    },
-                });
-                return media?.url;
-            } catch (e) {
-                console.warn("Image generation failed, likely due to quota. Skipping image.", e);
-                return undefined;
-            }
-        })(),
-        (async () => {
+    // Check if the model decided to use the findWebImage tool.
+    const toolRequest = llmResponse.requests.find(r => r.toolRequest.name === 'findWebImage');
+    if (toolRequest) {
+        const toolResponse = await toolRequest.run();
+        imageUrl = (toolResponse as { imageUrl: string }).imageUrl;
+    } else {
+        // If the tool wasn't used, proceed with the original image generation logic.
+         const [imageUrlResult, audioUrlResult] = await Promise.allSettled([
+            (async () => {
+                try {
+                    const { output: imagePromptOutput } = await imageGenerationPrompt({ topic: input.prompt });
+                    if (!imagePromptOutput?.imagePrompt || imagePromptOutput.imagePrompt === 'NO_IMAGE_NEEDED') return undefined;
+
+                    const { media } = await ai.generate({
+                        model: 'googleai/gemini-2.0-flash-preview-image-generation',
+                        prompt: imagePromptOutput.imagePrompt,
+                        config: {
+                            responseModalities: ['TEXT', 'IMAGE'],
+                        },
+                    });
+                    return media?.url;
+                } catch (e) {
+                    console.warn("Image generation failed, likely due to quota. Skipping image.", e);
+                    return undefined;
+                }
+            })(),
+            (async () => {
+                if (!explanation) return undefined;
+                try {
+                    const { media } = await ai.generate({
+                        model: 'googleai/gemini-2.5-flash-preview-tts',
+                        config: {
+                            responseModalities: ['AUDIO'],
+                            speechConfig: {
+                            voiceConfig: {
+                                prebuiltVoiceConfig: { voiceName: 'Algenib' },
+                            },
+                            },
+                        },
+                        prompt: explanation,
+                    });
+                    if (!media) return undefined;
+                    const audioBuffer = Buffer.from(
+                        media.url.substring(media.url.indexOf(',') + 1),
+                        'base64'
+                    );
+                    const wavBase64 = await toWav(audioBuffer);
+                    return `data:audio/wav;base64,${wavBase64}`;
+                } catch (e) {
+                    console.warn("TTS generation failed, likely due to quota. Skipping audio.", e);
+                    return undefined;
+                }
+            })()
+        ]);
+         imageUrl = imageUrlResult.status === 'fulfilled' ? imageUrlResult.value : undefined;
+    }
+     
+    // Step 3: Generate audio in parallel (if not already done).
+    const audioUrlResult = await (async () => {
             if (!explanation) return undefined;
             try {
                 const { media } = await ai.generate({
@@ -180,13 +248,12 @@ const myTutorFlow = ai.defineFlow(
                 console.warn("TTS generation failed, likely due to quota. Skipping audio.", e);
                 return undefined;
             }
-        })()
-    ]);
+        })();
+    
+    const audioUrl = audioUrlResult;
 
-    const imageUrl = imageUrlResult.status === 'fulfilled' ? imageUrlResult.value : undefined;
-    const audioUrl = audioUrlResult.status === 'fulfilled' ? audioUrlResult.value : undefined;
 
-    // Step 3: Assemble the final result object.
+    // Step 4: Assemble the final result object.
     const finalResult: MyTutorOutput = {
       explanation: explanation || "I'm sorry, I couldn't come up with an explanation for that.",
       imageUrl,
@@ -197,7 +264,7 @@ const myTutorFlow = ai.defineFlow(
       prompt: input.prompt,
     };
     
-    // Step 4: Save the complete result to Firestore.
+    // Step 5: Save the complete result to Firestore.
     try {
         const courseId = doc(collection(db, `users/${input.userId}/courses`)).id;
         const courseDocRef = doc(db, `users/${input.userId}/courses/${courseId}`);
@@ -209,10 +276,11 @@ const myTutorFlow = ai.defineFlow(
         };
         
         // Prevent overly large data URIs from being saved to Firestore.
-        if (historyData.imageUrl && historyData.imageUrl.length > 1048487) {
-            console.warn("Generated image is too large for Firestore, omitting from history.");
+        if (historyData.imageUrl && historyData.imageUrl.startsWith('data:image')) {
+            console.warn("Generated image is a data URI, omitting from history to avoid size issues.");
             historyData.imageUrl = undefined;
         }
+
          if (historyData.audioUrl && historyData.audioUrl.length > 1048487) {
             console.warn("Generated audio is too large for Firestore, omitting from history.");
             historyData.audioUrl = undefined;
@@ -232,3 +300,5 @@ const myTutorFlow = ai.defineFlow(
     return finalResult;
   }
 );
+
+    
