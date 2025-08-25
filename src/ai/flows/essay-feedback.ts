@@ -31,6 +31,7 @@ const EssayFeedbackOutputSchema = z.object({
   creativityFeedback:
     z.string().describe('Feedback on the creativity of the essay.'),
   overallFeedback: z.string().describe('Overall feedback on the essay.'),
+  highlightedEssay: z.string().describe("The original essay with suggested improvements. Use Markdown's bold (`**text**`) for additions and strikethrough (`~~text~~`) for deletions.")
 });
 
 export type EssayFeedbackOutput = z.infer<typeof EssayFeedbackOutputSchema>;
@@ -45,14 +46,16 @@ const prompt = ai.definePrompt({
   name: 'essayFeedbackPrompt',
   input: {schema: EssayFeedbackInputSchema},
   output: {schema: EssayFeedbackOutputSchema},
-  prompt: `You are an expert essay feedback provider for students. You will provide feedback on the following aspects of the essay:
+  prompt: `You are an expert essay feedback provider for students. You will provide feedback on the following aspects of the essay and also provide a revised version of the essay with highlighted changes.
 
 - Grammar: Provide feedback on the grammar of the essay.
 - Coherence: Provide feedback on the coherence of the essay. Does the essay flow well?
 - Relevance: Provide feedback on the relevance of the essay to the topic. Does the essay address the topic?
-- Creativity: Provide feedback on the creativity of the essay. Is the original and engaging?
+- Creativity: Provide feedback on the creativity of the essay. Is it original and engaging?
 
-Ensure that the feedback is appropriate for a {{gradeLevel}} student. Do not be condescending, encourage the student.
+Finally, create a revised version of the essay in the 'highlightedEssay' field. In this version, highlight your suggested changes directly in the text. Use Markdown's bold syntax ('**new text**') for any words you add or change, and use Markdown's strikethrough syntax ('~~deleted text~~') for any words you suggest removing.
+
+Ensure that the feedback and suggestions are appropriate for a {{gradeLevel}} student. Do not be condescending; be encouraging.
 
 Topic: {{topic}}
 Essay: {{essay}}`,

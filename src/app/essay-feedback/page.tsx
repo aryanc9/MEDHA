@@ -12,9 +12,10 @@ import { Form, FormControl, FormField, FormItem, FormLabel, FormMessage } from '
 import { Input } from '@/components/ui/input';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { Textarea } from '@/components/ui/textarea';
-import { Loader2, Sparkles } from 'lucide-react';
+import { Loader2, Sparkles, Wand2 } from 'lucide-react';
 import { Accordion, AccordionContent, AccordionItem, AccordionTrigger } from '@/components/ui/accordion';
 import { useToast } from '@/hooks/use-toast';
+import { Separator } from '@/components/ui/separator';
 
 
 const formSchema = z.object({
@@ -24,6 +25,20 @@ const formSchema = z.object({
 });
 
 type FormData = z.infer<typeof formSchema>;
+
+const HighlightedEssayDisplay = ({ content }: { content: string }) => {
+    // A simple parser to convert markdown to styled spans
+    const parsedContent = content
+        .replace(/~~\s*(.*?)\s*~~/g, '<del class="bg-red-500/20 px-1 rounded-sm">$1</del>')
+        .replace(/\*\*\s*(.*?)\s*\*\*/g, '<strong class="bg-green-500/20 px-1 rounded-sm">$1</strong>');
+
+    return (
+        <div 
+            className="prose prose-sm dark:prose-invert max-w-none whitespace-pre-wrap"
+            dangerouslySetInnerHTML={{ __html: parsedContent }}
+        />
+    );
+};
 
 export default function EssayFeedbackPage() {
   const [loading, setLoading] = useState(false);
@@ -55,7 +70,7 @@ export default function EssayFeedbackPage() {
   };
 
   return (
-    <div className="container mx-auto max-w-4xl py-12 px-4">
+    <div className="container mx-auto max-w-6xl py-12 px-4">
       <div className="text-center mb-10">
         <h1 className="text-4xl font-bold tracking-tight font-headline">Essay Feedback</h1>
         <p className="text-muted-foreground mt-2 max-w-2xl mx-auto">
@@ -63,7 +78,7 @@ export default function EssayFeedbackPage() {
         </p>
       </div>
 
-      <div className="grid lg:grid-cols-2 gap-8">
+      <div className="grid lg:grid-cols-2 gap-8 items-start">
         <div>
           <Card>
             <CardHeader>
@@ -145,43 +160,58 @@ export default function EssayFeedbackPage() {
           <Card className="sticky top-24">
             <CardHeader>
               <CardTitle>AI Feedback</CardTitle>
-              <CardDescription>Here is the breakdown of your essay analysis.</CardDescription>
+              <CardDescription>Here is the breakdown of your essay analysis and suggestions.</CardDescription>
             </CardHeader>
             <CardContent>
               {loading && (
-                <div className="flex items-center justify-center h-64 text-muted-foreground">
+                <div className="flex items-center justify-center h-96 text-muted-foreground">
                   <Loader2 className="mr-2 h-5 w-5 animate-spin" />
                   <p>Our AI is reading your essay...</p>
                 </div>
               )}
               {!loading && !result && (
-                <div className="flex items-center justify-center h-64 text-center text-muted-foreground">
+                <div className="flex items-center justify-center h-96 text-center text-muted-foreground">
                   <p>Your feedback will appear here once you submit your essay.</p>
                 </div>
               )}
               {result && (
-                <Accordion type="single" collapsible defaultValue="item-4" className="w-full">
-                  <AccordionItem value="item-1">
-                    <AccordionTrigger>Grammar</AccordionTrigger>
-                    <AccordionContent>{result.grammarFeedback}</AccordionContent>
-                  </AccordionItem>
-                  <AccordionItem value="item-2">
-                    <AccordionTrigger>Coherence</AccordionTrigger>
-                    <AccordionContent>{result.coherenceFeedback}</AccordionContent>
-                  </AccordionItem>
-                  <AccordionItem value="item-3">
-                    <AccordionTrigger>Relevance to Topic</AccordionTrigger>
-                    <AccordionContent>{result.relevanceFeedback}</AccordionContent>
-                  </AccordionItem>
-                  <AccordionItem value="item-5">
-                    <AccordionTrigger>Creativity</AccordionTrigger>
-                    <AccordionContent>{result.creativityFeedback}</AccordionContent>
-                  </AccordionItem>
-                   <AccordionItem value="item-4">
-                    <AccordionTrigger className="text-base font-bold text-primary">Overall Feedback</AccordionTrigger>
-                    <AccordionContent>{result.overallFeedback}</AccordionContent>
-                  </AccordionItem>
-                </Accordion>
+                <div className="space-y-6">
+                    <Accordion type="single" collapsible defaultValue="item-4" className="w-full">
+                        <AccordionItem value="item-1">
+                            <AccordionTrigger>Grammar</AccordionTrigger>
+                            <AccordionContent>{result.grammarFeedback}</AccordionContent>
+                        </AccordionItem>
+                        <AccordionItem value="item-2">
+                            <AccordionTrigger>Coherence</AccordionTrigger>
+                            <AccordionContent>{result.coherenceFeedback}</AccordionContent>
+                        </AccordionItem>
+                        <AccordionItem value="item-3">
+                            <AccordionTrigger>Relevance to Topic</AccordionTrigger>
+                            <AccordionContent>{result.relevanceFeedback}</AccordionContent>
+                        </AccordionItem>
+                        <AccordionItem value="item-5">
+                            <AccordionTrigger>Creativity</AccordionTrigger>
+                            <AccordionContent>{result.creativityFeedback}</AccordionContent>
+                        </AccordionItem>
+                        <AccordionItem value="item-4">
+                            <AccordionTrigger className="text-base font-bold text-primary">Overall Feedback</AccordionTrigger>
+                            <AccordionContent>{result.overallFeedback}</AccordionContent>
+                        </AccordionItem>
+                    </Accordion>
+                    <Separator />
+                    <div>
+                        <h3 className="text-lg font-semibold flex items-center gap-2 mb-2">
+                            <Wand2 className="h-5 w-5 text-primary"/>
+                            Suggested Revisions
+                        </h3>
+                        <p className="text-sm text-muted-foreground mb-4">
+                            Text to be <strong className="text-green-600">added is bold</strong> and text to be <del className="text-red-600">removed is struck through</del>.
+                        </p>
+                        <div className="border rounded-md p-4 max-h-96 overflow-y-auto">
+                            <HighlightedEssayDisplay content={result.highlightedEssay} />
+                        </div>
+                    </div>
+                </div>
               )}
             </CardContent>
           </Card>
