@@ -1,17 +1,10 @@
-
 rules_version = '2';
 
 service cloud.firestore {
   match /databases/{database}/documents {
-    // Allow users to manage their own user document
-    match /users/{userId} {
-      allow read, update, delete: if request.auth != null && request.auth.uid == userId;
-      allow create: if request.auth != null;
-    }
-
-    // Allow users to manage documents in their own subcollections (courses, conversations, etc.)
-    match /users/{userId}/{path=**} {
-        allow read, write, create, delete: if request.auth != null && request.auth.uid == userId;
+    // Users can only read and write to their own documents.
+    match /users/{userId}/{document=**} {
+      allow read, write: if request.auth != null && request.auth.uid == userId;
     }
   }
 }

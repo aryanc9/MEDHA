@@ -461,8 +461,13 @@ const TalkBuddyDisplay = ({ loadConversation }: { loadConversation: (messages: T
     }, [messages]);
 
     useEffect(() => {
-        loadConversation(messages, language, conversationId || '');
-    }, [messages, language, conversationId, loadConversation]);
+        const internalLoadConversation = (msgs: TalkBuddyMessage[], lang: string, id: string) => {
+            setMessages(msgs);
+            setLanguage(lang);
+            setConversationId(id);
+        };
+        loadConversation(internalLoadConversation as any);
+    }, [loadConversation]);
 
     const handleSendMessage = useCallback(async (text: string) => {
         const currentMessage = text.trim();
@@ -737,7 +742,7 @@ export default function MyTutorPage() {
                  {result?.course && <CourseDisplay result={result} />}
             </TabsContent>
             <TabsContent value="buddy">
-                <TalkBuddyDisplay loadConversation={setTalkBuddyLoadConversation} />
+                <TalkBuddyDisplay loadConversation={setTalkBuddyLoadConversation as any} />
             </TabsContent>
            </Tabs>
         </div>
