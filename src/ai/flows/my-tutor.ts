@@ -72,18 +72,10 @@ export async function myTutor(input: MyTutorInput): Promise<MyTutorOutput> {
   return myTutorFlow(input);
 }
 
-const imageGenerationPrompt = ai.definePrompt({
-    name: 'imageGenerationPrompt',
-    input: { schema: z.object({ topic: z.string() }) },
-    output: { schema: z.object({ imagePrompt: z.string().describe('A prompt for an image generation model to create a helpful, visually appealing image for a course on the given topic.') }) },
-    prompt: `Based on the user's topic, generate a creative and suitable image prompt for a course on the topic: {{{topic}}}. The prompt should result in an image that is visually appealing and relevant to the subject.
-    `
-});
-
 const tutorPrompt = ai.definePrompt({
     name: 'tutorPrompt',
     input: { schema: MyTutorInputSchema.omit({ userId: true }) },
-    output: { schema: MyTutorOutputSchema.omit({ imageUrl: true, audioUrl: true, id: true, createdAt: true, prompt: true }) },
+    output: { schema: MyTutorOutputSchema.omit({ imageUrl: true, audioUrl: true, id: true, createdAt: true, prompt: true, relatedResources: RelatedResourcesSchema.omit({videoId: true}) }) },
     prompt: `You are an expert AI course creator and a metacognitive learning coach. Your goal is to generate a comprehensive, well-structured course and to help the student learn how to learn.
 
     **Core Task:**
@@ -93,7 +85,10 @@ const tutorPrompt = ai.definePrompt({
     After generating the course content, create ONE insightful reflection prompt. This prompt should encourage the student to think about their learning process, connect concepts, or analyze potential difficulties related to the topic. For example: "What was the most confusing part of this topic, and what strategy could you use to understand it better?" or "How does this concept connect to what you already know about [related topic]?".
 
     **Resource Task:**
-    Find 5-7 highly relevant external resources (videos, articles) to supplement the lesson. For YouTube videos, ensure they are from reputable channels and provide the video ID.
+    Find 5-7 highly relevant external resources (videos, articles) to supplement the lesson. For YouTube videos, ensure they are from reputable channels and provide the full video URL.
+    
+    **Image Prompt Task:**
+    Based on the user's topic, generate a creative and suitable prompt for an image generation model. The prompt should result in an image that is visually appealing and relevant to the subject matter.
 
     **User Request Details:**
     User Topic: {{{prompt}}}
@@ -118,6 +113,14 @@ const tutorPrompt = ai.definePrompt({
     `
 });
 
+// Helper function to extract YouTube video ID from various URL formats
+function getYouTubeVideoId(url: string): string | null {
+    if (!url) return null;
+    const regExp = /^.*(youtu.be\/|v\/|u\/\w\/|embed\/|watch\?v=|\&v=)([^#\&\?]*).*/;
+    const match = url.match(regExp);
+    return (match && match[2].length === 11) ? match[2] : null;
+}
+
 const myTutorFlow = ai.defineFlow(
   {
     name: 'myTutorFlow',
@@ -125,7 +128,7 @@ const myTutorFlow = ai.defineFlow(
     outputSchema: MyTutorOutputSchema,
   },
   async (input) => {
-    // Step 1: Generate the core text content.
+    // Step 1: Generate the core text content and decide on the visual aid strategy.
     const llmResponse = await tutorPrompt(input);
     
     if (!llmResponse.output) {
@@ -133,25 +136,35 @@ const myTutorFlow = ai.defineFlow(
       throw new Error('Failed to get a response from the AI. You may have exceeded your usage quota.');
     }
 
-    const { explanation, course, relatedResources, reflectionPrompt } = llmResponse.output;
+    const { explanation, course, reflectionPrompt } = llmResponse.output;
+    let { relatedResources } = llmResponse.output;
+
+    // Step 1.5: Process related resources to add video IDs
+    if (relatedResources) {
+        relatedResources = relatedResources.map(resource => {
+            if (resource.type === 'video' && resource.url) {
+                const videoId = getYouTubeVideoId(resource.url);
+                return { ...resource, videoId: videoId || undefined };
+            }
+            return resource;
+        });
+    }
 
     // Step 2: Handle image generation logic.
-    let imageUrl: string | undefined;
+    let imageUrl: string | undefined = "https://placehold.co/1280x720.png?text=AI+Generated+Image"
     try {
-        const { output: imagePromptOutput } = await imageGenerationPrompt({ topic: input.prompt });
-        if (imagePromptOutput?.imagePrompt) {
-            const { media } = await ai.generate({
-                model: 'googleai/gemini-2.0-flash-preview-image-generation',
-                prompt: imagePromptOutput.imagePrompt,
-                config: {
-                    responseModalities: ['TEXT', 'IMAGE'],
-                },
-            });
-            imageUrl = media?.url;
-        }
+        const { media } = await ai.generate({
+            model: 'googleai/gemini-2.0-flash-preview-image-generation',
+            prompt: `An educational and visually appealing image for a course about: ${input.prompt}`,
+            config: {
+                responseModalities: ['TEXT', 'IMAGE'],
+            },
+        });
+        imageUrl = media?.url || imageUrl;
+        
     } catch (e) {
         console.warn("AI image generation failed, likely due to quota. Skipping image.", e);
-        imageUrl = undefined;
+        imageUrl = "https://placehold.co/1280x720.png?text=AI+Image+Failed"
     }
      
     // Step 3: Generate audio in parallel.
@@ -230,4 +243,3 @@ const myTutorFlow = ai.defineFlow(
     return finalResult;
   }
 );
- 
