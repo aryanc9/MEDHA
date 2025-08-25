@@ -22,14 +22,35 @@ Medha is more than just a content delivery platform; it's a tool designed to tea
 
 The technology stack was chosen to support a high-performance, scalable, and modern application.
 
--   **Frontend**: **Next.js** with **React** and **TypeScript**.
--   **UI Components**: **ShadCN/UI** provides a set of accessible, unstyled components that are customized using **Tailwind CSS**. This offers maximum design flexibility while ensuring a consistent and high-quality user interface.
--   **Backend & Database**: **Firebase** serves as the backend-as-a-service (BaaS).
-    -   **Firebase Authentication**: Manages user sign-up, login, and security.
-    -   **Firestore**: A NoSQL database used to store all application data, including user profiles, course history, chat conversations, and scores. Its real-time capabilities are leveraged to keep the UI instantly in sync with backend changes.
--   **AI Integration**: **Genkit**, an open-source AI framework, orchestrates all interactions with Google's AI models.
-    -   **Google AI (Gemini)**: Powers all generative features, including course creation, essay feedback, chat responses, and quiz generation.
-    -   **Structured Outputs**: By defining Zod schemas for AI model inputs and outputs, we ensure that the data flowing between the application and the AI is reliable, predictable, and strongly typed.
+#### **Frontend (The User Interface)**
+
+*   **Framework**: **Next.js (v15+)** with **React** is used for building the user interface. We use the **App Router**, which enables a modern, server-centric approach for faster performance.
+*   **Language**: **TypeScript** is used for all frontend code to ensure type safety and improve code quality.
+*   **UI Components**: We use **ShadCN/UI**, which provides a set of accessible and unstyled components that are then customized for the Medha app.
+*   **Styling**: **Tailwind CSS** is used for all styling, allowing for a utility-first approach that is highly efficient and customizable. The specific theme colors are defined in `src/app/globals.css`.
+
+#### **Backend & Database (Data and Server Logic)**
+
+*   **Primary Backend Service**: **Firebase** serves as the backend platform.
+*   **Authentication**: **Firebase Authentication** handles all user sign-up, login, and security, including email/password and social logins (Google, GitHub).
+*   **Database**: **Firestore** is the NoSQL database used to store all application data, such as user profiles, course history, chat conversations, and student scores.
+
+#### **AI Integration & Flows (The "Brains")**
+
+*   **AI Framework**: **Genkit** is the open-source framework used to structure, manage, and deploy all the AI-powered features. It orchestrates the calls to the AI models.
+*   **Generative AI Model**: **Google's Gemini model family** is the primary model used for generating text content, including course creation, essay feedback, and chat responses. This is configured in `src/ai/genkit.ts`.
+*   **Data Schemas**: **Zod** is used to define strict input and output schemas for all AI flows. This ensures that the data returned from the AI is always in a predictable, structured format.
+
+#### **Speech Services (Text-to-Speech)**
+
+*   **Text-to-Speech (TTS) Model**: We use the `gemini-2.5-flash-preview-tts` model, accessed via Genkit, to convert the AI's text responses into audible speech. You can see this implemented in flows like `talkBuddy` and `myTutor`.
+*   **Audio Format**: The generated audio is encoded in WAV format for broad browser compatibility, as handled by the `wav` package and our `toWav` utility function.
+
+#### **Data Visualization**
+
+*   **Charts**: Although not heavily used on the current dashboard, the project is set up with **Recharts** for any data visualization needs, such as displaying charts and graphs of student progress. You can find the charting components in `src/components/ui/chart.tsx`.
+*   **Progress Bars**: For simple visualizations, like the goal progress on the dashboard, we use the custom `Progress` component from ShadCN/UI.
+
 
 ## 4. AI Integration Strategy: Secure and Structured Flows
 
