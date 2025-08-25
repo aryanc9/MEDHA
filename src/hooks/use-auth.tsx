@@ -7,6 +7,7 @@ import {
   getAuth,
   User,
   GoogleAuthProvider,
+  GithubAuthProvider,
   signInWithPopup,
   signInWithEmailAndPassword,
   createUserWithEmailAndPassword,
@@ -35,6 +36,7 @@ interface AuthContextType {
   signIn: (email: string, pass: string) => Promise<any>;
   signUp: (email: string, pass: string, fullName: string) => Promise<any>;
   signInWithGoogle: () => Promise<any>;
+  signInWithGithub: () => Promise<any>;
   signOut: () => Promise<void>;
   updateUserSettings: (uid: string, settings: UserSettings) => Promise<void>;
   handleNewUserSetup: (user: User) => Promise<void>;
@@ -47,6 +49,7 @@ const AuthContext = createContext<AuthContextType>({
   signIn: async () => {},
   signUp: async () => {},
   signInWithGoogle: async () => {},
+  signInWithGithub: async () => {},
   signOut: async () => {},
   updateUserSettings: async () => {},
   handleNewUserSetup: async () => {},
@@ -93,7 +96,7 @@ export const AuthProvider = ({ children }: { children: React.ReactNode }) => {
     const unsubscribe = onAuthStateChanged(auth, async (user) => {
       setLoading(true);
       if (user) {
-         if (!user.emailVerified && !user.providerData.some(p => p.providerId === GoogleAuthProvider.PROVIDER_ID)) {
+         if (!user.emailVerified && !user.providerData.some(p => p.providerId === GoogleAuthProvider.PROVIDER_ID || p.providerId === GithubAuthProvider.PROVIDER_ID)) {
             setUser(null);
             setUserSettings(null);
          } else {
@@ -159,6 +162,11 @@ export const AuthProvider = ({ children }: { children: React.ReactNode }) => {
     const provider = new GoogleAuthProvider();
     return await signInWithPopup(auth, provider);
   };
+  
+  const signInWithGithub = async () => {
+    const provider = new GithubAuthProvider();
+    return await signInWithPopup(auth, provider);
+  };
 
   const signOut = async () => {
     await firebaseSignOut(auth);
@@ -175,7 +183,7 @@ export const AuthProvider = ({ children }: { children: React.ReactNode }) => {
   };
 
   return (
-    <AuthContext.Provider value={{ user, userSettings, loading, signIn, signUp, signInWithGoogle, signOut, updateUserSettings, handleNewUserSetup }}>
+    <AuthContext.Provider value={{ user, userSettings, loading, signIn, signUp, signInWithGoogle, signInWithGithub, signOut, updateUserSettings, handleNewUserSetup }}>
       {children}
     </AuthContext.Provider>
   );

@@ -50,12 +50,14 @@ const GoogleIcon = (props: React.SVGProps<SVGSVGElement>) => (
 export default function SignupPage() {
     const router = useRouter()
     const { toast } = useToast()
-    const { signUp, signInWithGoogle, user, handleNewUserSetup } = useAuth()
+    const { signUp, signInWithGoogle, signInWithGithub, user, handleNewUserSetup } = useAuth()
     const [email, setEmail] = React.useState("")
     const [password, setPassword] = React.useState("")
     const [fullName, setFullName] = React.useState("")
     const [loading, setLoading] = React.useState(false)
     const [googleLoading, setGoogleLoading] = React.useState(false)
+    const [githubLoading, setGithubLoading] = React.useState(false)
+
 
     const handleSignup = async (e: React.FormEvent) => {
         e.preventDefault()
@@ -93,11 +95,28 @@ export default function SignupPage() {
         }
     }
 
+    const handleGithubLogin = async () => {
+      setGithubLoading(true);
+      try {
+        await signInWithGithub();
+      } catch (error: any) {
+        toast({
+          title: "GitHub Sign-in Failed",
+          description: error.message || "Could not sign in with GitHub.",
+          variant: "destructive",
+        });
+      } finally {
+        setGithubLoading(false);
+      }
+    };
+
     React.useEffect(() => {
         if (user) {
             handleNewUserSetup(user);
         }
     }, [user, handleNewUserSetup])
+
+    const isLoading = loading || googleLoading || githubLoading;
 
   return (
     <div className="w-full min-h-screen lg:grid lg:grid-cols-2">
@@ -121,7 +140,7 @@ export default function SignupPage() {
                     className="pl-10" 
                     value={fullName}
                     onChange={(e) => setFullName(e.target.value)}
-                    disabled={loading || googleLoading}
+                    disabled={isLoading}
                 />
               </div>
             </div>
@@ -137,7 +156,7 @@ export default function SignupPage() {
                   className="pl-10"
                   value={email}
                   onChange={(e) => setEmail(e.target.value)}
-                  disabled={loading || googleLoading}
+                  disabled={isLoading}
                 />
               </div>
             </div>
@@ -152,11 +171,11 @@ export default function SignupPage() {
                     className="pl-10" 
                     value={password}
                     onChange={(e) => setPassword(e.target.value)}
-                    disabled={loading || googleLoading}
+                    disabled={isLoading}
                 />
               </div>
             </div>
-            <Button type="submit" className="w-full" disabled={loading || googleLoading}>
+            <Button type="submit" className="w-full" disabled={isLoading}>
                {loading && <Loader2 className="animate-spin mr-2" />}
               Create Account
             </Button>
@@ -172,11 +191,11 @@ export default function SignupPage() {
             </div>
           </div>
           <div className="grid grid-cols-2 gap-4">
-            <Button variant="outline" disabled={loading || googleLoading}>
-              <Github className="mr-2 h-4 w-4" />
+            <Button variant="outline" onClick={handleGithubLogin} disabled={isLoading}>
+               {githubLoading ? <Loader2 className="animate-spin mr-2" /> : <Github className="mr-2 h-4 w-4" />}
               GitHub
             </Button>
-            <Button variant="outline" onClick={handleGoogleLogin} disabled={loading || googleLoading}>
+            <Button variant="outline" onClick={handleGoogleLogin} disabled={isLoading}>
                {googleLoading ? <Loader2 className="animate-spin mr-2" /> : <GoogleIcon className="mr-2 h-4 w-4" />}
               Google
             </Button>
