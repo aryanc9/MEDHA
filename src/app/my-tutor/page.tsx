@@ -35,6 +35,7 @@ import {
     HelpCircle,
     CheckCircle2,
     XCircle,
+    History,
 } from 'lucide-react';
 import { myTutor, type MyTutorOutput } from '@/ai/flows/my-tutor';
 import { analyzeReflection } from '@/ai/flows/analyze-reflection';
@@ -44,13 +45,15 @@ import { useAuth } from '@/hooks/use-auth';
 import { useToast } from '@/hooks/use-toast';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { ScrollArea } from '@/components/ui/scroll-area';
-import { useSearchParams } from 'next/navigation';
+import { useSearchParams, useRouter } from 'next/navigation';
 import { generateQuiz, type GenerateQuizOutput, gradeQuiz, type GradeQuizOutput } from '@/ai/flows/quiz-flow';
 import type { QuizQuestion } from '@/ai/schemas/quiz-schemas';
 import { RadioGroup, RadioGroupItem } from '@/components/ui/radio-group';
 import { cn } from '@/lib/utils';
 import { getFirestore, doc, getDoc } from 'firebase/firestore';
 import { firebaseApp } from '@/lib/firebase';
+import { CourseHistoryList } from '@/components/tutor/CourseHistoryList';
+
 
 const db = getFirestore(firebaseApp);
 
@@ -793,81 +796,109 @@ const TalkBuddyDisplay = () => {
 
 // Wrapper component to avoid server/client component mismatch with Suspense
 const MyTutorPageContent = () => {
+    const router = useRouter();
     const searchParams = useSearchParams();
     const { user } = useAuth();
     const { toast } = useToast();
+    
     const courseId = searchParams.get('courseId');
-    const initialTab = searchParams.get('tab') === 'buddy' ? 'buddy' : 'create';
-    const initialTopic = searchParams.get('topic') || '';
+    const tabParam = searchParams.get('tab');
+    
+    // Determine initial tab: 'history' if courseId is present, otherwise respect 'tab' param or default to 'create'
+    const getInitialTab = () => {
+        if (courseId) return 'create'; // When loading a course, show it in the create tab
+        if (tabParam === 'buddy') return 'buddy';
+        if (tabParam === 'history') return 'history';
+        return 'create';
+    };
 
-    const [activeTab, setActiveTab] = useState(initialTab);
+    const [activeTab, setActiveTab] = useState(getInitialTab());
     const [result, setResult] = useState<MyTutorOutput | null>(null);
     const [loadingCourse, setLoadingCourse] = useState(false);
+    const [initialTopic, setInitialTopic] = useState(searchParams.get('topic') || '');
+
+    const loadCourse = useCallback(async (id: string) => {
+        if (id && user) {
+            setLoadingCourse(true);
+            setResult(null);
+            try {
+                const courseRef = doc(db, `users/${user.uid}/courses/${id}`);
+                const docSnap = await getDoc(courseRef);
+                if (docSnap.exists()) {
+                    setResult(docSnap.data() as MyTutorOutput);
+                    setActiveTab('create');
+                } else {
+                    toast({ title: 'Course not found', variant: 'destructive' });
+                }
+            } catch (error) {
+                toast({ title: 'Failed to load course', variant: 'destructive' });
+            } finally {
+                setLoadingCourse(false);
+            }
+        }
+    }, [user, toast]);
 
     useEffect(() => {
-        const loadCourse = async () => {
-            if (courseId && user) {
-                setLoadingCourse(true);
-                setResult(null);
-                try {
-                    const courseRef = doc(db, `users/${user.uid}/courses/${courseId}`);
-                    const docSnap = await getDoc(courseRef);
-                    if (docSnap.exists()) {
-                        setResult(docSnap.data() as MyTutorOutput);
-                        setActiveTab('create');
-                    } else {
-                        toast({ title: 'Course not found', variant: 'destructive' });
-                    }
-                } catch (error) {
-                    toast({ title: 'Failed to load course', variant: 'destructive' });
-                } finally {
-                    setLoadingCourse(false);
-                }
-            }
-        };
-        loadCourse();
-    }, [courseId, user, toast]);
-    
-    // When the tab or topic changes from URL, update the state
-    useEffect(() => {
-        if (!courseId) { // Only switch tab if not loading a specific course
-             setActiveTab(initialTab);
+        if (courseId) {
+            loadCourse(courseId);
         }
-    }, [initialTab, courseId]);
+    }, [courseId, loadCourse]);
+
+    // Update tab if URL changes
+    useEffect(() => {
+        setActiveTab(getInitialTab());
+    }, [tabParam, courseId]);
     
     const handleCourseCreated = (output: MyTutorOutput | null) => {
         setResult(output);
+        if (output && output.id) {
+            // Update URL without reloading page to reflect the new course ID
+            router.push(`/my-tutor?courseId=${output.id}`, { scroll: false });
+        }
     };
+
+    const handleSelectCourseFromHistory = (courseId: string) => {
+        router.push(`/my-tutor?courseId=${courseId}`);
+    }
 
     return (
         <div className="container mx-auto max-w-6xl py-12 px-4">
              <div className="text-center mb-10">
                 <h1 className="text-4xl font-bold tracking-tight font-headline">Adaptive AI Tutor</h1>
                 <p className="text-muted-foreground mt-2 max-w-2xl mx-auto">
-                    Generate a personalized course with metacognitive feedback or use the voice-enabled tutor.
+                    Generate a personalized course, chat with a voice buddy, or review your learning history.
                 </p>
             </div>
           
-           <Tabs value={activeTab} onValueChange={setActiveTab} className="w-full">
-            <TabsList className="grid w-full grid-cols-2">
-              <TabsTrigger value="create"><BookCopy className="mr-2"/> Create Course</TabsTrigger>
-              <TabsTrigger value="buddy"><MessageSquare className="mr-2"/> Chat Buddy</TabsTrigger>
-            </TabsList>
-            <TabsContent value="create">
-                 <CourseCreationForm onCourseCreate={handleCourseCreated} initialTopic={initialTopic} />
-                 {loadingCourse && (
-                    <Card className="mt-6">
-                        <CardContent className="p-10 flex flex-col items-center justify-center text-center">
-                            <Loader2 className="h-12 w-12 animate-spin text-primary mb-4" />
-                            <p className="text-lg font-medium text-muted-foreground">Loading your course...</p>
-                        </CardContent>
-                    </Card>
-                 )}
-                 {result?.course && <CourseDisplay result={result} />}
-            </TabsContent>
-            <TabsContent value="buddy">
-                <TalkBuddyDisplay />
-            </TabsContent>
+           <Tabs value={activeTab} onValueChange={(value) => {
+               setActiveTab(value);
+               // Clear courseId from URL when switching tabs away from a loaded course
+               router.push(`/my-tutor?tab=${value}`, { scroll: false });
+               setResult(null); // Clear displayed course
+           }} className="w-full">
+                <TabsList className="grid w-full grid-cols-3">
+                    <TabsTrigger value="create"><BookCopy className="mr-2"/> Create Course</TabsTrigger>
+                    <TabsTrigger value="buddy"><MessageSquare className="mr-2"/> Chat Buddy</TabsTrigger>
+                    <TabsTrigger value="history"><History className="mr-2"/> History</TabsTrigger>
+                </TabsList>
+                <TabsContent value="create">
+                    <CourseCreationForm onCourseCreate={handleCourseCreated} initialTopic={initialTopic} />
+                    {loadingCourse && (
+                        <Card className="mt-6">
+                            <CardContent className="p-10 flex flex-col items-center justify-center text-center">
+                                <Loader2 className="h-12 w-12 animate-spin text-primary mb-4" />
+                                <p className="text-lg font-medium text-muted-foreground">Loading your course...</p>
+                            </CardContent>
+                        </Card>
+                    )}
+                    {result?.course && <CourseDisplay result={result} />}
+                </TabsContent>
+                <TabsContent value="buddy">
+                    <TalkBuddyDisplay />
+                </TabsContent>
+                <TabsContent value="history">
+                    <CourseHistoryList onSelectCourse={handleSelectCourseFromHistory} />
+                </TabsContent>
            </Tabs>
         </div>
     );
@@ -881,5 +912,3 @@ export default function MyTutorPage() {
         </React.Suspense>
     );
 }
-
-    
