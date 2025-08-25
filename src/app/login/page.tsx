@@ -4,7 +4,7 @@
 import Link from "next/link"
 import { useRouter } from "next/navigation"
 import * as React from "react"
-import { BrainCircuit, Github, KeyRound, Mail } from "lucide-react"
+import { Github, KeyRound, Mail } from "lucide-react"
 import { useAuth } from "@/hooks/use-auth"
 import { Button } from "@/components/ui/button"
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card"
@@ -12,6 +12,18 @@ import { Input } from "@/components/ui/input"
 import { Label } from "@/components/ui/label"
 import { useToast } from "@/hooks/use-toast"
 import { Loader2 } from "lucide-react"
+
+const MedhaLogo = ({ className }: { className?: string }) => (
+    <svg
+      viewBox="0 0 200 40"
+      xmlns="http://www.w3.org/2000/svg"
+      className={className}
+      >
+        <text x="50%" y="50%" dominantBaseline="middle" textAnchor="middle" fontSize="36" fontWeight="bold" fill="currentColor" className="font-headline">
+            Medha
+        </text>
+    </svg>
+);
 
 const GoogleIcon = (props: React.SVGProps<SVGSVGElement>) => (
   <svg
@@ -196,7 +208,7 @@ export default function LoginPage() {
         </div>
       </div>
       <div className="hidden bg-muted lg:flex lg:items-center lg:justify-center lg:flex-col p-12 text-center">
-        <BrainCircuit className="h-24 w-24 text-primary mb-4" />
+        <MedhaLogo className="h-24 w-auto text-primary mb-4" />
         <h2 className="text-4xl font-bold font-headline">Unlock Your Potential</h2>
         <p className="text-muted-foreground mt-4 max-w-md">
           Medha is your personal AI-powered learning companion. Experience adaptive tutoring, get instant essay feedback, and follow personalized learning paths to achieve your goals.
@@ -205,5 +217,3 @@ export default function LoginPage() {
     </div>
   )
 }
-
-    
