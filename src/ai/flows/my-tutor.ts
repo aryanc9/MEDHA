@@ -218,6 +218,7 @@ const myTutorFlow = ai.defineFlow(
             createdAt: new Date().toISOString(),
         };
         
+        // Firestore has a 1MB document size limit. Data URIs can easily exceed this.
         if (historyData.sourceFile && historyData.sourceFile.length > 1048487) {
             console.warn("Source file is too large for Firestore, omitting from history.");
             historyData.sourceFile = `File too large to save in history: ${historyData.sourceFile.substring(0,50)}...`;
