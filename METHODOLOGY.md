@@ -41,6 +41,12 @@ The technology stack was chosen to support a high-performance, scalable, and mod
 *   **Generative AI Model**: **Google's Gemini model family** is the primary model used for generating text content, including course creation, essay feedback, and chat responses. This is configured in `src/ai/genkit.ts`.
 *   **Data Schemas**: **Zod** is used to define strict input and output schemas for all AI flows. This ensures that the data returned from the AI is always in a predictable, structured format.
 
+#### **Computer Vision (Image Analysis & Generation)**
+
+*   **AI Model**: The core of the computer vision functionality is **Google's Gemini model**. Its multimodal capabilities allow it to understand both text and image data in a single prompt (e.g., analyzing a user-uploaded diagram in the AI Tutor).
+*   **AI Framework**: **Genkit** is used to manage the interaction with the Gemini model, simplifying the process of sending image data (as data URIs) and receiving analysis.
+*   **Image Generation Model**: For creating new images to supplement lessons, the application uses the `googleai/gemini-2.0-flash-preview-image-generation` model, also accessed via Genkit.
+
 #### **Speech Services (Text-to-Speech)**
 
 *   **Text-to-Speech (TTS) Model**: We use the `gemini-2.5-flash-preview-tts` model, accessed via Genkit, to convert the AI's text responses into audible speech. You can see this implemented in flows like `talkBuddy` and `myTutor`.
