@@ -2,12 +2,14 @@
 'use client';
 
 import { useEffect, useState } from 'react';
-import { BookOpenCheck, BrainCircuit, Route, Loader2, MessageSquare } from 'lucide-react';
+import { BookOpenCheck, BrainCircuit, Route, Loader2, MessageSquare, ArrowRight } from 'lucide-react';
 import { WelcomeHeader } from '@/components/dashboard/WelcomeHeader';
 import { FeatureCard } from '@/components/dashboard/FeatureCard';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { useAuth } from '@/hooks/use-auth';
 import { getPersonalizedLearningPath, PersonalizedLearningPathOutput } from '@/ai/flows/personalized-learning-paths';
+import Link from 'next/link';
+import { Button } from '@/components/ui/button';
 
 export default function DashboardPage() {
   const { user, userSettings } = useAuth();
@@ -98,9 +100,14 @@ export default function DashboardPage() {
                 ) : (
                   <ul className="space-y-3">
                       {learningPath?.moduleRecommendations && learningPath.moduleRecommendations.length > 0 ? learningPath.moduleRecommendations.map((module, index) => (
-                          <li key={index} className="flex items-center gap-3 p-3 bg-muted/50 rounded-md">
-                          <span className="font-medium text-muted-foreground">{index + 1}.</span>
-                          <span className="font-medium">{module}</span>
+                          <li key={index}>
+                            <Button asChild variant="ghost" className="w-full justify-start h-auto p-3 bg-muted/50 rounded-md group">
+                                <Link href={`/my-tutor?topic=${encodeURIComponent(module)}`}>
+                                  <span className="font-medium text-muted-foreground mr-3">{index + 1}.</span>
+                                  <span className="font-medium flex-1 text-left">{module}</span>
+                                  <ArrowRight className="h-4 w-4 text-muted-foreground transition-transform group-hover:translate-x-1"/>
+                                </Link>
+                            </Button>
                           </li>
                       )) : <p className="text-muted-foreground">No learning path recommendations available yet.</p>}
                   </ul>

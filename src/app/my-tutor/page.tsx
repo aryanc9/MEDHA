@@ -221,11 +221,13 @@ const CourseDisplay = ({ result }: { result: MyTutorOutput; }) => {
 // Component for the course creation form
 const CourseCreationForm = ({
     onCourseCreate,
+    initialTopic = '',
 }:{
     onCourseCreate: (output: MyTutorOutput) => void;
+    initialTopic?: string;
 }) => {
     const { user } = useAuth();
-    const [topic, setTopic] = useState('');
+    const [topic, setTopic] = useState(initialTopic);
     const [isResearchMode, setIsResearchMode] = useState(false);
     const [useOwnSources, setUseOwnSources] = useState(false);
     const [defineStructure, setDefineStructure] = useState(false);
@@ -234,6 +236,11 @@ const CourseCreationForm = ({
     const [courseStructure, setCourseStructure] = useState('');
     const [isGenerating, setIsGenerating] = useState(false);
     const { toast } = useToast();
+    
+    // Effect to update topic if initialTopic changes
+    useEffect(() => {
+        setTopic(initialTopic);
+    }, [initialTopic]);
 
     const handleFileChange = (e: React.ChangeEvent<HTMLInputElement>) => {
         const file = e.target.files?.[0];
@@ -675,16 +682,23 @@ const HistoryDisplay = ({ onCourseSelect, onConversationSelect }: {
     );
 };
 
-export default function MyTutorPage() {
+// Wrapper component to avoid server/client component mismatch with Suspense
+const MyTutorPageContent = () => {
     const searchParams = useSearchParams();
     const initialTab = searchParams.get('tab') === 'buddy' ? 'buddy' : 'create';
+    const initialTopic = searchParams.get('topic') || '';
+
     const [activeTab, setActiveTab] = useState(initialTab);
-    
     const [result, setResult] = useState<MyTutorOutput | null>(null);
     const [isSheetOpen, setIsSheetOpen] = useState(false);
     
     const talkBuddyLoadConversationRef = useRef<((messages: TalkBuddyMessage[], language: string, id: string) => void) | null>(null);
 
+    // When the tab or topic changes from URL, update the state
+    useEffect(() => {
+        setActiveTab(initialTab);
+    }, [initialTab]);
+    
     const handleCourseCreated = (output: MyTutorOutput) => {
         setResult(output);
     };
@@ -706,7 +720,7 @@ export default function MyTutorPage() {
     const setTalkBuddyLoadConversation = useCallback((loader: (messages: TalkBuddyMessage[], language: string, id: string) => void) => {
         talkBuddyLoadConversationRef.current = loader;
     }, []);
-    
+
     return (
         <div className="container mx-auto max-w-6xl py-12 px-4">
              <div className="flex justify-between items-start mb-10">
@@ -738,7 +752,7 @@ export default function MyTutorPage() {
               <TabsTrigger value="buddy"><MessageSquare className="mr-2"/> Talk Buddy</TabsTrigger>
             </TabsList>
             <TabsContent value="create">
-                 <CourseCreationForm onCourseCreate={handleCourseCreated} />
+                 <CourseCreationForm onCourseCreate={handleCourseCreated} initialTopic={initialTopic} />
                  {result?.course && <CourseDisplay result={result} />}
             </TabsContent>
             <TabsContent value="buddy">
@@ -747,4 +761,14 @@ export default function MyTutorPage() {
            </Tabs>
         </div>
     );
+};
+
+
+export default function MyTutorPage() {
+    return (
+        <React.Suspense fallback={<div className="flex h-screen items-center justify-center"><Loader2 className="h-10 w-10 animate-spin" /></div>}>
+            <MyTutorPageContent />
+        </React.Suspense>
+    );
 }
+
