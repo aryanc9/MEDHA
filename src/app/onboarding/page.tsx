@@ -132,7 +132,7 @@ function OnboardingPageContent() {
                                 <FormControl>
                                     <SelectTrigger>
                                     <SelectValue placeholder="Select your level" />
-                                    </SelectTrigger>
+                                    </Trigger>
                                 </FormControl>
                                 <SelectContent>
                                     <SelectItem value="High School">High School</SelectItem>
