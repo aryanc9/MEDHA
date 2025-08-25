@@ -57,9 +57,15 @@ export default function LoginPage() {
       await signIn(email, password)
       // The auth state change will be handled by the layout and useEffect below
     } catch (error: any) {
+      let description = "An unexpected error occurred. Please try again.";
+      if (error.code === 'auth/invalid-credential' || error.code === 'auth/wrong-password' || error.code === 'auth/user-not-found') {
+        description = "Invalid email or password. Please check your credentials and try again.";
+      } else if (error.message) {
+        description = error.message;
+      }
       toast({
         title: "Login Failed",
-        description: error.message || "Invalid email or password.",
+        description: description,
         variant: "destructive",
       })
     } finally {
@@ -136,12 +142,6 @@ export default function LoginPage() {
             <div className="grid gap-2">
               <div className="flex items-center">
                 <Label htmlFor="password">Password</Label>
-                <Link
-                  href="#"
-                  className="ml-auto inline-block text-sm underline"
-                >
-                  Forgot your password?
-                </Link>
               </div>
               <div className="relative">
                 <KeyRound className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
@@ -155,6 +155,12 @@ export default function LoginPage() {
                    disabled={isLoading}
                 />
               </div>
+               <Link
+                  href="#"
+                  className="text-right text-sm text-primary underline"
+                >
+                  Forgot your password?
+                </Link>
             </div>
             <Button type="submit" className="w-full" disabled={isLoading}>
                {loading && <Loader2 className="animate-spin mr-2" />}
@@ -199,3 +205,5 @@ export default function LoginPage() {
     </div>
   )
 }
+
+    
