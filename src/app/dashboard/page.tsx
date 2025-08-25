@@ -7,82 +7,10 @@ import { WelcomeHeader } from '@/components/dashboard/WelcomeHeader';
 import { FeatureCard } from '@/components/dashboard/FeatureCard';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle, CardFooter } from '@/components/ui/card';
 import { useAuth } from '@/hooks/use-auth';
-import { analyzeReflection } from '@/ai/flows/analyze-reflection';
 import { Button } from '@/components/ui/button';
 import { Progress } from '@/components/ui/progress';
-import { useToast } from '@/hooks/use-toast';
-import { Textarea } from '@/components/ui/textarea';
 import { CourseHistory } from '@/components/dashboard/CourseHistory';
-
-const ReflectionCard = () => {
-    const { user } = useAuth();
-    const { toast } = useToast();
-    const [reflectionText, setReflectionText] = useState('');
-    const [isSubmitting, setIsSubmitting] = useState(false);
-    const [feedback, setFeedback] = useState('');
-
-    const handleSubmitReflection = async () => {
-        if (!reflectionText.trim() || !user) {
-            toast({ title: "Please write your reflection first.", variant: 'destructive' });
-            return;
-        }
-        setIsSubmitting(true);
-        setFeedback('');
-        try {
-            const { feedback, pointsAwarded } = await analyzeReflection({
-                userId: user.uid,
-                reflectionText: reflectionText,
-            });
-            setFeedback(`${feedback} You've been awarded ${pointsAwarded} points.`);
-             toast({
-                title: `Reflection Submitted! 🎉`,
-                description: `You've been awarded ${pointsAwarded} points.`,
-            });
-            setReflectionText('');
-        } catch (error: any) {
-            toast({ title: 'Error Submitting Reflection', description: error.message, variant: 'destructive' });
-        } finally {
-            setIsSubmitting(false);
-        }
-    };
-
-    return (
-        <Card>
-            <CardHeader>
-                <CardTitle className="font-headline flex items-center gap-2">
-                    <TrendingUp className="h-6 w-6 text-primary" />
-                    <span>Learning Insights & Reflections</span>
-                </CardTitle>
-                <CardDescription>
-                    Reflect on what you've learned to solidify your knowledge and earn points. What was challenging? What clicked?
-                </CardDescription>
-            </CardHeader>
-            <CardContent>
-                <div className="grid gap-4">
-                    <Textarea 
-                        placeholder="e.g., I finally understood how async/await works in Javascript by comparing it to making a sandwich..." 
-                        rows={5}
-                        value={reflectionText}
-                        onChange={(e) => setReflectionText(e.target.value)}
-                        disabled={isSubmitting}
-                    />
-                    <div className="flex justify-end">
-                        <Button onClick={handleSubmitReflection} disabled={isSubmitting}>
-                            {isSubmitting && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
-                            Submit Reflection
-                        </Button>
-                    </div>
-                     {feedback && (
-                        <div className="p-4 bg-muted/50 border rounded-lg text-sm text-muted-foreground">
-                            <p className="font-semibold text-foreground mb-2">AI Feedback:</p>
-                            {feedback}
-                        </div>
-                    )}
-                </div>
-            </CardContent>
-        </Card>
-    )
-}
+import { ReflectionCard } from '@/components/dashboard/ReflectionCard';
 
 
 export default function DashboardPage() {
