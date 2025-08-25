@@ -53,8 +53,7 @@ Your goal is to provide a helpful, concise response to the user's query. If the 
 
 **Conversation History:**
 {{#each chatHistory}}
-  {{#if (eq sender "user")}}User: {{text}}{{/if}}
-  {{#if (eq sender "bot")}}AI: {{text}}{{/if}}
+  {{sender}}: {{text}}
 {{/each}}
 
 **User's New Query:**
