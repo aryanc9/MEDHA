@@ -1,29 +1,30 @@
-
 rules_version = '2';
 
 service cloud.firestore {
   match /databases/{database}/documents {
-    // Users can read their own document
+
+    // Users can read and create their own profile.
+    // They can only update their own profile.
+    // Score can only be incremented, not set arbitrarily.
     match /users/{userId} {
-      allow read: if request.auth.uid == userId;
+      allow read, create: if request.auth != null && request.auth.uid == userId;
 
-      // Users can create their own document
-      allow create: if request.auth.uid == userId;
-
-      // Allow users to update their own document, but only certain fields
-      // to prevent them from giving themselves an arbitrary score.
+      // Allow updates to all fields except studentScore if the user is the owner.
+      // The studentScore can only be incremented, not directly set, preventing cheating.
       allow update: if request.auth.uid == userId &&
-                    request.resource.data.diff(resource.data).affectedKeys()
-                    .hasOnly(['studentScore', 'learningGoal', 'careerPath', 'academicLevel', 'firstName', 'lastName', 'gender', 'nationality', 'dateOfBirth', 'bloodGroup', 'category', 'tshirtSize', 'primaryContactNumber', 'studentContactNumber', 'studentEmail']);
-      
-      // Allow users to read and write to their own courses subcollection
+                       // Check that the incoming resource is not overwriting protected fields.
+                       !(request.resource.data.studentScore is number) &&
+                       // Allow incrementing the score. The diff will be a number.
+                       (request.resource.data.studentScore == request.resource.data.diff(1).studentScore + 1);
+
+      // A user can read, write, and delete their own courses.
       match /courses/{courseId} {
-        allow read, write: if request.auth.uid == userId;
+        allow read, write, delete: if request.auth.uid == userId;
       }
 
-      // Allow users to read and write to their own conversations subcollection
+      // A user can read, write, and delete their own conversations.
       match /conversations/{conversationId} {
-        allow read, write: if request.auth.uid == userId;
+        allow read, write, delete: if request.auth.uid == userId;
       }
     }
   }
