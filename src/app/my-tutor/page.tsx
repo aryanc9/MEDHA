@@ -672,9 +672,10 @@ const TalkBuddyDisplay = () => {
     const handleSendMessage = useCallback(async (text: string) => {
         const currentMessage = text.trim();
         if (!currentMessage || !user) return;
-        
-        const userMessage: TalkBuddyMessage = { sender: 'user', text: currentMessage, audioUrl: null };
+
+        const userMessage: TalkBuddyMessage = { sender: 'user', text: currentMessage };
         const newMessages = [...messages, userMessage];
+        
         setMessages(newMessages);
         setUserInput('');
         setIsLoading(true);
@@ -683,10 +684,10 @@ const TalkBuddyDisplay = () => {
             const response: TalkBuddyOutput = await talkBuddy({ 
                 prompt: currentMessage,
                 language,
-                messages: messages.map(m => ({ sender: m.sender, text: m.text })), // Pass history without audioUrl
+                messages: newMessages.map(m => ({ sender: m.sender, text: m.text })), // Pass history without audioUrl
                 userId: user.uid,
                 conversationId,
-             });
+            });
 
             const botMessage: TalkBuddyMessage = { sender: 'bot', text: response.responseText, audioUrl: response.audioUrl };
             setMessages(prev => [...prev, botMessage]);
@@ -883,6 +884,8 @@ export default function MyTutorPage() {
         </React.Suspense>
     );
 }
+
+    
 
     
 

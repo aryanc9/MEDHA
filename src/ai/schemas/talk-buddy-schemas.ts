@@ -4,14 +4,14 @@ import { z } from 'zod';
 export const TalkBuddyMessageSchema = z.object({
     sender: z.enum(['user', 'bot']),
     text: z.string(),
-    audioUrl: z.string().optional().nullable(),
+    audioUrl: z.string().optional(),
 });
 export type TalkBuddyMessage = z.infer<typeof TalkBuddyMessageSchema>;
 
 export const TalkBuddyInputSchema = z.object({
   prompt: z.string().describe("The user's message to the buddy."),
   language: z.string().describe('The language for the conversation, e.g., "English", "Spanish", "Hindi".'),
-  messages: z.array(TalkBuddyMessageSchema).optional().describe("The history of the conversation for context."),
+  messages: z.array(z.object({ sender: z.enum(['user', 'bot']), text: z.string()})).optional().describe("The history of the conversation for context."),
   userId: z.string().describe("The user's unique ID to save history."),
   conversationId: z.string().optional().describe("The existing conversation ID to continue a chat."),
 });
@@ -23,3 +23,5 @@ export const TalkBuddyOutputSchema = z.object({
   conversationId: z.string().optional().describe('The ID of the conversation session.'),
 });
 export type TalkBuddyOutput = z.infer<typeof TalkBuddyOutputSchema>;
+
+    
