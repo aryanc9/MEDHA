@@ -92,7 +92,7 @@ export default function LoginPage() {
       <div className="flex items-center justify-center py-12">
         <div className="mx-auto grid w-[350px] gap-6">
           <div className="grid gap-2 text-center">
-            <h1 className="text-3xl font-bold font-headline">Login to MetaLearn AI</h1>
+            <h1 className="text-3xl font-bold font-headline">Login to Medha</h1>
             <p className="text-balance text-muted-foreground">
               Enter your email below to login to your account
             </p>
@@ -174,7 +174,7 @@ export default function LoginPage() {
         <BrainCircuit className="h-24 w-24 text-primary mb-4" />
         <h2 className="text-4xl font-bold font-headline">Unlock Your Potential</h2>
         <p className="text-muted-foreground mt-4 max-w-md">
-          MetaLearn AI is your personal AI-powered learning coach. Experience adaptive tutoring, get instant feedback, and reflect on your learning process to achieve mastery.
+          Medha is your personal AI-powered learning companion. Experience adaptive tutoring, get instant essay feedback, and follow personalized learning paths to achieve your goals.
         </p>
       </div>
     </div>

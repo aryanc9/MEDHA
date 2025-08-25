@@ -23,14 +23,14 @@ import {
 } from "@/components/ui/sidebar"
 import { useSidebar } from "@/components/ui/sidebar"
 
-const MetaLearnLogo = ({ className }: { className?: string }) => (
+const MedhaLogo = ({ className }: { className?: string }) => (
     <svg
       viewBox="0 0 200 40"
       xmlns="http://www.w3.org/2000/svg"
       className={className}
       >
         <text x="50%" y="50%" dominantBaseline="middle" textAnchor="middle" fontSize="28" fontWeight="bold" fill="currentColor" className="font-headline">
-            MetaLearn AI
+            Medha
         </text>
     </svg>
 );
@@ -50,9 +50,9 @@ export function SidebarNav() {
       <SidebarHeader>
         <Link href="/dashboard" className="flex items-center gap-2">
             {isCollapsed ? (
-                 <MetaLearnLogo className="w-10 h-10 text-primary" />
+                 <MedhaLogo className="w-10 h-10 text-primary" />
             ) : (
-                 <MetaLearnLogo className="w-40 h-16 text-primary" />
+                 <MedhaLogo className="w-40 h-16 text-primary" />
             )}
         </Link>
       </SidebarHeader>

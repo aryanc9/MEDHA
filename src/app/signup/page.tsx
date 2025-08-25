@@ -193,7 +193,7 @@ export default function SignupPage() {
         <BrainCircuit className="h-24 w-24 text-primary mb-4" />
         <h2 className="text-4xl font-bold font-headline">Begin Your Journey</h2>
         <p className="text-muted-foreground mt-4 max-w-md">
-        Join MetaLearn AI today and transform your learning experience. Get access to powerful AI tools designed to help you succeed.
+        Join Medha today and transform your learning experience. Get access to powerful AI tools designed to help you succeed.
         </p>
       </div>
     </div>

@@ -79,7 +79,7 @@ function OnboardingPageContent() {
         <div className="w-full max-w-lg p-4">
             <Card>
                 <CardHeader className="text-center">
-                    <CardTitle className="text-3xl font-bold font-headline">Welcome to MetaLearn AI!</CardTitle>
+                    <CardTitle className="text-3xl font-bold font-headline">Welcome to Medha!</CardTitle>
                     <CardDescription>To get started, let's set your first learning goal.</CardDescription>
                 </CardHeader>
                 <CardContent>

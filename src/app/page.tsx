@@ -22,7 +22,7 @@ export default function HomePage() {
             <span className="text-primary">How to Learn</span>
           </h1>
           <p className="mt-6 max-w-3xl text-lg text-muted-foreground">
-            MetaLearn AI is an adaptive tutor that integrates metacognition tools and accessibility-first design. Go beyond just knowing, and start understanding.
+            Medha is an adaptive tutor that integrates metacognition tools and accessibility-first design. Go beyond just knowing, and start understanding.
           </p>
           <div className="mt-8 flex flex-col sm:flex-row items-center gap-4">
             <Button asChild size="lg" className="rounded-full font-semibold shadow-lg transition-transform transform hover:scale-105">
