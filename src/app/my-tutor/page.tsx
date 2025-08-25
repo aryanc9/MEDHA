@@ -701,7 +701,7 @@ const TalkBuddyDisplay = () => {
         } catch (error) {
             console.error("Talk Buddy failed:", error);
             toast({ title: "Error", description: "Talk Buddy failed to respond.", variant: "destructive" });
-            setMessages(prev => prev.slice(0, -1)); // Remove the user's message if the API call fails
+            setMessages(messages); // Revert to the state before sending the message
         } finally {
             setIsLoading(false);
         }
@@ -884,6 +884,8 @@ export default function MyTutorPage() {
         </React.Suspense>
     );
 }
+
+    
 
     
 
