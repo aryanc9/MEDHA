@@ -29,7 +29,7 @@ function OnboardingPageContent() {
   const [loading, setLoading] = useState(false);
   const router = useRouter();
   const { toast } = useToast();
-  const { user, updateUserSettings } = useAuth();
+  const { user, userSettings, updateUserSettings } = useAuth();
 
   const form = useForm<FormData>({
     resolver: zodResolver(formSchema),
@@ -48,10 +48,11 @@ function OnboardingPageContent() {
     setLoading(true);
     try {
       await updateUserSettings(user.uid, { 
+        ...userSettings,
         learningGoal: data.learningGoal,
         careerPath: data.careerPath,
         academicLevel: data.academicLevel,
-        email: user.email,
+        email: user.email, // ensure these are always present
         displayName: user.displayName,
       });
 
@@ -109,7 +110,7 @@ function OnboardingPageContent() {
                                 <FormControl>
                                     <SelectTrigger>
                                     <SelectValue placeholder="Select a career" />
-                                    </SelectTrigger>
+                                    </Trigger>
                                 </FormControl>
                                 <SelectContent>
                                     <SelectItem value="Software Engineer">Software Engineer</SelectItem>
