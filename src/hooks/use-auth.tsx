@@ -77,28 +77,8 @@ export const AuthProvider = ({ children }: { children: React.ReactNode }) => {
             createdAt: new Date(),
             studentScore: 0,
         }, { merge: true });
-        // Redirect to onboarding
-        if (pathname !== '/onboarding') {
-            router.push('/onboarding');
-        }
-        return;
     }
-
-    const settings = docSnap.data();
-    const hasCompletedOnboarding = settings.careerPath && settings.academicLevel;
-
-    if (hasCompletedOnboarding) {
-        // User has completed onboarding, send them to the dashboard if they are on a public/auth page
-        if (pathname === '/onboarding' || pathname === '/login' || pathname === '/signup' || pathname === '/') {
-             router.push('/dashboard');
-        }
-    } else {
-        // User has not completed onboarding, send them there
-         if (pathname !== '/onboarding') {
-            router.push('/onboarding');
-        }
-    }
-  }, [router, pathname]);
+  }, []);
 
 
   useEffect(() => {
@@ -124,17 +104,33 @@ export const AuthProvider = ({ children }: { children: React.ReactNode }) => {
    useEffect(() => {
     if (user) {
       const docRef = doc(db, 'users', user.uid);
-      const unsubscribe = onSnapshot(docRef, (doc) => {
-        if(doc.exists()){
-            const settings = doc.data() as UserSettings;
+      const unsubscribe = onSnapshot(docRef, (docSnap) => {
+        if(docSnap.exists()){
+            const settings = docSnap.data() as UserSettings;
             setUserSettings(settings);
+
+            const hasCompletedOnboarding = settings.careerPath && settings.academicLevel;
+
+            if (hasCompletedOnboarding) {
+                // User has completed onboarding, send them to the dashboard if they are on a public/auth page
+                if (pathname === '/onboarding' || pathname === '/login' || pathname === '/signup' || pathname === '/') {
+                    router.push('/dashboard');
+                }
+            } else {
+                // User has not completed onboarding, send them there
+                if (pathname !== '/onboarding') {
+                    router.push('/onboarding');
+                }
+            }
         } else {
+            // This case handles newly signed-up users whose doc might not exist yet
+            // The handleNewUserSetup function will create it, and this snapshot listener will re-fire
             setUserSettings(null);
         }
       });
       return () => unsubscribe();
     }
-  }, [user]);
+  }, [user, pathname, router]);
 
   const signIn = async (email: string, pass: string) => {
     try {
@@ -145,7 +141,7 @@ export const AuthProvider = ({ children }: { children: React.ReactNode }) => {
           throw new Error("Please verify your email before logging in. A new verification email has been sent.");
         }
         return userCredential;
-    } catch (error) => {
+    } catch (error) {
         throw error;
     }
   };
@@ -154,14 +150,8 @@ export const AuthProvider = ({ children }: { children: React.ReactNode }) => {
     const userCredential = await createUserWithEmailAndPassword(auth, email, pass);
     await updateProfile(userCredential.user, { displayName: fullName });
     
-    const userDocRef = doc(db, "users", userCredential.user.uid);
-    await setDoc(userDocRef, {
-        uid: userCredential.user.uid,
-        displayName: fullName,
-        email: email,
-        createdAt: new Date(),
-        studentScore: 0,
-    });
+    // We only create the user doc here. Redirection is handled by the useEffect.
+    await handleNewUserSetup(userCredential.user);
 
     await sendEmailVerification(userCredential.user);
     await firebaseSignOut(auth);

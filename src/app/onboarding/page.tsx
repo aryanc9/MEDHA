@@ -34,9 +34,9 @@ function OnboardingPageContent() {
   const form = useForm<FormData>({
     resolver: zodResolver(formSchema),
     defaultValues: {
-      learningGoal: '',
-      careerPath: '',
-      academicLevel: '',
+      learningGoal: userSettings?.learningGoal || '',
+      careerPath: userSettings?.careerPath || '',
+      academicLevel: userSettings?.academicLevel || '',
     },
   });
 
@@ -63,11 +63,11 @@ function OnboardingPageContent() {
 
       router.push('/dashboard');
 
-    } catch (error) {
+    } catch (error: any) {
       console.error('Failed to save settings:', error);
       toast({
         title: "Error",
-        description: "Could not save your preferences. Please try again.",
+        description: error.message || "Could not save your preferences. Please try again.",
         variant: "destructive",
       });
     } finally {
@@ -177,7 +177,9 @@ function OnboardingPageContent() {
 export default function OnboardingPage() {
     return (
         <ProtectRoute>
-            <OnboardingPageContent />
+            <div>
+                <OnboardingPageContent />
+            </div>
         </ProtectRoute>
     );
 }
