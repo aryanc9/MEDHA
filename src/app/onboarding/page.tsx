@@ -179,5 +179,5 @@ export default function OnboardingPage() {
         <ProtectRoute>
             <OnboardingPageContent />
         </ProtectRoute>
-    )
+    );
 }

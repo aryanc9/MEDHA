@@ -68,18 +68,8 @@ export const AuthProvider = ({ children }: { children: React.ReactNode }) => {
     const userDocRef = doc(db, "users", user.uid);
     const docSnap = await getDoc(userDocRef);
 
-    if (docSnap.exists()) {
-        const settings = docSnap.data();
-        if (settings.careerPath && settings.academicLevel) {
-            if (pathname === '/onboarding' || pathname === '/login' || pathname === '/signup') {
-                 router.push('/dashboard');
-            }
-        } else {
-             if (pathname !== '/onboarding') {
-                router.push('/onboarding');
-            }
-        }
-    } else {
+    if (!docSnap.exists()) {
+       // This is a new user, create their document
        await setDoc(userDocRef, {
             uid: user.uid,
             displayName: user.displayName,
@@ -87,8 +77,25 @@ export const AuthProvider = ({ children }: { children: React.ReactNode }) => {
             createdAt: new Date(),
             studentScore: 0,
         }, { merge: true });
+        // Redirect to onboarding
         if (pathname !== '/onboarding') {
-            router.push("/onboarding");
+            router.push('/onboarding');
+        }
+        return;
+    }
+
+    const settings = docSnap.data();
+    const hasCompletedOnboarding = settings.careerPath && settings.academicLevel;
+
+    if (hasCompletedOnboarding) {
+        // User has completed onboarding, send them to the dashboard if they are on a public/auth page
+        if (pathname === '/onboarding' || pathname === '/login' || pathname === '/signup' || pathname === '/') {
+             router.push('/dashboard');
+        }
+    } else {
+        // User has not completed onboarding, send them there
+         if (pathname !== '/onboarding') {
+            router.push('/onboarding');
         }
     }
   }, [router, pathname]);
