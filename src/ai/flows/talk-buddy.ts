@@ -85,7 +85,7 @@ const talkBuddyFlow = ai.defineFlow(
         audioUrl = `data:audio/wav;base64,${wavBase64}`;
       }
     } catch (e) {
-      console.warn("Talk Buddy TTS generation failed, skipping audio.", e);
+      // Don't block the response if TTS fails
     }
     
     const finalResult: TalkBuddyOutput = { responseText, audioUrl };
@@ -112,11 +112,9 @@ const talkBuddyFlow = ai.defineFlow(
         finalResult.conversationId = conversationId;
 
     } catch (error) {
-        console.error("Failed to save conversation history:", error);
+        // Do not block the response if saving fails
     }
 
     return finalResult;
   }
 );
-
-    

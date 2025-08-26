@@ -149,7 +149,6 @@ const myTutorFlow = ai.defineFlow(
     const llmResponse = await tutorPrompt(input);
     
     if (!llmResponse.output) {
-      console.error("Tutor prompt failed, possibly due to rate limiting. Check your Google AI plan and quota.");
       throw new Error('Failed to get a response from the AI. You may have exceeded your usage quota.');
     }
 
@@ -189,7 +188,6 @@ const myTutorFlow = ai.defineFlow(
                 const wavBase64 = await toWav(audioBuffer);
                 return `data:audio/wav;base64,${wavBase64}`;
             } catch (e) {
-                console.warn("TTS generation failed, likely due to quota. Skipping audio.", e);
                 return undefined;
             }
         })();
@@ -220,12 +218,10 @@ const myTutorFlow = ai.defineFlow(
         
         // Firestore has a 1MB document size limit. Data URIs can easily exceed this.
         if (historyData.sourceFile && historyData.sourceFile.length > 1048487) {
-            console.warn("Source file is too large for Firestore, omitting from history.");
             historyData.sourceFile = `File too large to save in history: ${historyData.sourceFile.substring(0,50)}...`;
         }
         
         if (historyData.audioUrl && historyData.audioUrl.length > 1048487) {
-            console.warn("Generated audio is too large for Firestore, omitting from history.");
             historyData.audioUrl = undefined;
         }
 
@@ -236,12 +232,9 @@ const myTutorFlow = ai.defineFlow(
         finalResult.createdAt = historyData.createdAt;
 
     } catch(error) {
-        console.error("Failed to save course history:", error);
         // Do not block the response if saving fails, just return the generated content.
     }
 
     return finalResult;
   }
 );
-
-    
