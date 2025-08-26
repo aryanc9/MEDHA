@@ -70,7 +70,7 @@ export default function LoginPage() {
       // The auth state change will be handled by the layout and useEffect below
     } catch (error: any) {
       let description = "An unexpected error occurred. Please try again.";
-      if (error.code === 'auth/invalid-credential' || error.code === 'auth/wrong-password' || error.code === 'auth/user-not-found') {
+      if (error.code === 'auth/invalid-credential' || error.code === 'auth/wrong-password' || error.code === 'auth/user-not-found' || error.code === 'auth/invalid-email') {
         description = "Invalid email or password. Please check your credentials and try again.";
       } else if (error.message) {
         description = error.message;
@@ -127,85 +127,87 @@ export default function LoginPage() {
   return (
     <div className="w-full min-h-screen lg:grid lg:grid-cols-2 relative">
       <div className="flex items-center justify-center py-12">
-        <div className="mx-auto grid w-[350px] gap-6">
-          <div className="grid gap-2 text-center">
-            <h1 className="text-3xl font-bold font-headline">Login to Medha</h1>
-            <p className="text-balance text-muted-foreground">
+        <Card className="mx-auto w-[380px]">
+          <CardHeader>
+            <CardTitle className="text-2xl font-bold font-headline text-center">Login to Medha</CardTitle>
+            <CardDescription className="text-center">
               Enter your email below to login to your account
-            </p>
-          </div>
-          <form onSubmit={handleLogin} className="grid gap-4">
-            <div className="grid gap-2">
-              <Label htmlFor="email">Email</Label>
-              <div className="relative">
-                <Mail className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
-                <Input
-                  id="email"
-                  type="email"
-                  placeholder="m@example.com"
-                  required
-                  className="pl-10"
-                  value={email}
-                  onChange={(e) => setEmail(e.target.value)}
-                  disabled={isLoading}
-                />
+            </CardDescription>
+          </CardHeader>
+          <CardContent>
+            <form onSubmit={handleLogin} className="grid gap-4">
+              <div className="grid gap-2">
+                <Label htmlFor="email">Email</Label>
+                <div className="relative">
+                  <Mail className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
+                  <Input
+                    id="email"
+                    type="email"
+                    placeholder="m@example.com"
+                    required
+                    className="pl-10"
+                    value={email}
+                    onChange={(e) => setEmail(e.target.value)}
+                    disabled={isLoading}
+                  />
+                </div>
+              </div>
+              <div className="grid gap-2">
+                <div className="flex items-center">
+                  <Label htmlFor="password">Password</Label>
+                   <Link
+                    href="#"
+                    className="ml-auto inline-block text-sm text-primary underline"
+                  >
+                    Forgot your password?
+                  </Link>
+                </div>
+                <div className="relative">
+                  <KeyRound className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
+                  <Input
+                    id="password"
+                    type="password"
+                    required
+                    className="pl-10"
+                    value={password}
+                    onChange={(e) => setPassword(e.target.value)}
+                    disabled={isLoading}
+                  />
+                </div>
+              </div>
+              <Button type="submit" className="w-full" disabled={isLoading}>
+                {loading && <Loader2 className="animate-spin mr-2" />}
+                Login
+              </Button>
+            </form>
+            <div className="relative mt-6">
+              <div className="absolute inset-0 flex items-center">
+                <span className="w-full border-t" />
+              </div>
+              <div className="relative flex justify-center text-xs uppercase">
+                <span className="bg-background px-2 text-muted-foreground">
+                  Or continue with
+                </span>
               </div>
             </div>
-            <div className="grid gap-2">
-              <div className="flex items-center">
-                <Label htmlFor="password">Password</Label>
-              </div>
-              <div className="relative">
-                <KeyRound className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
-                <Input
-                  id="password"
-                  type="password"
-                  required
-                  className="pl-10"
-                  value={password}
-                  onChange={(e) => setPassword(e.target.value)}
-                   disabled={isLoading}
-                />
-              </div>
-               <Link
-                  href="#"
-                  className="text-right text-sm text-primary underline"
-                >
-                  Forgot your password?
-                </Link>
+            <div className="grid grid-cols-2 gap-4 mt-6">
+              <Button variant="outline" onClick={handleGithubLogin} disabled={isLoading}>
+                {githubLoading ? <Loader2 className="animate-spin mr-2" /> : <Github className="mr-2 h-4 w-4" />}
+                GitHub
+              </Button>
+              <Button variant="outline" onClick={handleGoogleLogin} disabled={isLoading}>
+                  {googleLoading ? <Loader2 className="animate-spin mr-2" /> : <GoogleIcon className="mr-2 h-4 w-4" />}
+                  Google
+              </Button>
             </div>
-            <Button type="submit" className="w-full" disabled={isLoading}>
-               {loading && <Loader2 className="animate-spin mr-2" />}
-              Login
-            </Button>
-          </form>
-          <div className="relative">
-            <div className="absolute inset-0 flex items-center">
-              <span className="w-full border-t" />
+            <div className="mt-4 text-center text-sm">
+              Don&apos;t have an account?{" "}
+              <Link href="/signup" className="underline">
+                Sign up
+              </Link>
             </div>
-            <div className="relative flex justify-center text-xs uppercase">
-              <span className="bg-background px-2 text-muted-foreground">
-                Or continue with
-              </span>
-            </div>
-          </div>
-          <div className="grid grid-cols-2 gap-4">
-            <Button variant="outline" onClick={handleGithubLogin} disabled={isLoading}>
-              {githubLoading ? <Loader2 className="animate-spin mr-2" /> : <Github className="mr-2 h-4 w-4" />}
-              GitHub
-            </Button>
-            <Button variant="outline" onClick={handleGoogleLogin} disabled={isLoading}>
-                {googleLoading ? <Loader2 className="animate-spin mr-2" /> : <GoogleIcon className="mr-2 h-4 w-4" />}
-                Google
-            </Button>
-          </div>
-          <div className="mt-4 text-center text-sm">
-            Don&apos;t have an account?{" "}
-            <Link href="/signup" className="underline">
-              Sign up
-            </Link>
-          </div>
-        </div>
+          </CardContent>
+        </Card>
       </div>
       <div className="hidden bg-muted lg:flex lg:items-center lg:justify-center lg:flex-col p-12 text-center">
         <MedhaLogo className="h-24 w-auto text-primary mb-4" />
@@ -217,3 +219,5 @@ export default function LoginPage() {
     </div>
   )
 }
+
+    

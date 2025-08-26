@@ -145,7 +145,7 @@ export const AuthProvider = ({ children }: { children: React.ReactNode }) => {
           throw new Error("Please verify your email before logging in. A new verification email has been sent.");
         }
         return userCredential;
-    } catch (error) {
+    } catch (error) => {
         throw error;
     }
   };
