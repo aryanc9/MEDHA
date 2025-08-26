@@ -110,7 +110,7 @@ function OnboardingPageContent() {
                                 <FormControl>
                                     <SelectTrigger>
                                     <SelectValue placeholder="Select a career" />
-                                    </Trigger>
+                                    </SelectTrigger>
                                 </FormControl>
                                 <SelectContent>
                                     <SelectItem value="Software Engineer">Software Engineer</SelectItem>
@@ -138,7 +138,7 @@ function OnboardingPageContent() {
                                 <FormControl>
                                     <SelectTrigger>
                                     <SelectValue placeholder="Select your level" />
-                                    </Trigger>
+                                    </SelectTrigger>
                                 </FormControl>
                                 <SelectContent>
                                     <SelectItem value="Middle School">Middle School (Grades 6-8)</SelectItem>

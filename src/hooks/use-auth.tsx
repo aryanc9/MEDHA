@@ -109,7 +109,7 @@ export const AuthProvider = ({ children }: { children: React.ReactNode }) => {
             const settings = docSnap.data() as UserSettings;
             setUserSettings(settings);
 
-            const hasCompletedOnboarding = settings.careerPath && settings.academicLevel;
+            const hasCompletedOnboarding = settings && settings.careerPath && settings.academicLevel;
 
             if (hasCompletedOnboarding) {
                 // User has completed onboarding, send them to the dashboard if they are on a public/auth page
@@ -125,12 +125,12 @@ export const AuthProvider = ({ children }: { children: React.ReactNode }) => {
         } else {
             // This case handles newly signed-up users whose doc might not exist yet
             // The handleNewUserSetup function will create it, and this snapshot listener will re-fire
-            setUserSettings(null);
+             handleNewUserSetup(user);
         }
       });
       return () => unsubscribe();
     }
-  }, [user, pathname, router]);
+  }, [user, pathname, router, handleNewUserSetup]);
 
   const signIn = async (email: string, pass: string) => {
     try {
